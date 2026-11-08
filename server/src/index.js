@@ -4,6 +4,7 @@ const cors = require('cors');
 const disputeStore = require('./data/mockDisputes');
 const orchestrator = require('./agents/orchestrator');
 const paypalClient = require('./paypalClient');
+const aiEngine = require('./aiEngine');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
@@ -11,6 +12,21 @@ const PORT = process.env.PORT || 5001;
 
 app.use(cors());
 app.use(express.json());
+
+// Real AI Analysis Endpoint (Gemini / OpenAI)
+app.post('/api/ai/analyze', async (req, res) => {
+  try {
+    const { disputeCase, apiKey, provider } = req.body;
+    if (!disputeCase) {
+      return res.status(400).json({ error: 'disputeCase object is required' });
+    }
+    const result = await aiEngine.runAnalysis(disputeCase, apiKey, provider);
+    res.json({ success: true, result });
+  } catch (err) {
+    console.error('[API /api/ai/analyze error]:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // 1. Health check
 app.get('/api/health', (req, res) => {
