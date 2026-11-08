@@ -1,0 +1,23 @@
+{
+  "apimatic_version": "3.0",
+  "spec_path": "openapi.yaml",
+  "platforms": [
+    "NodeJS",
+    "Python",
+    "CSharp",
+    "Java",
+    "TypeScript"
+  ],
+  "codegen": {
+    "namespace": "AegisPay.Disputes",
+    "package_name": "aegispay-sdk",
+    "author": "AegisPay Engineering Team",
+    "github_url": "https://github.com/Tejal-Bhavsar/aegispay-ai"
+  },
+  "docs": {
+    "theme": "dark",
+    "title": "AegisPay AI API Documentation",
+    "interactive_console": true,
+    "paypal_integration_notes": "Compliant with PayPal Customer Disputes REST API v1"
+  }
+}

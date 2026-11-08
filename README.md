@@ -80,14 +80,17 @@ Every year, global merchants and payment networks lose over **$100 billion to ca
 
 ---
 
-## 🏆 Key Features
+## 🏆 Key Features & Sponsor Alignments
 
-| Feature | Description |
+| Feature / Sponsor Prize Track | Description |
 | :--- | :--- |
-| **AG Grid Command Center** | Real-time dispute operations table powered by AG Grid with custom renderers, multi-column sorting, quick filtering, and category chips. |
-| **Live Agent War Room** | Real-time terminal with Server-Sent Events (SSE) streaming agent thoughts and tool invocations step-by-step. |
+| **AG Grid Command Center** *(AG Grid 1st Place - $5,000)* | Real-time dispute operations table powered by AG Grid with custom cell renderers, multi-column sorting, quick filtering, and category chips. |
+| **Live Agent War Room** *(Best Use of Agentic Commerce)* | Real-time terminal with Server-Sent Events (SSE) streaming agent thoughts and tool invocations step-by-step. |
+| **Dispute Policy Studio** | Configurable merchant rules engine for automated PayPal submission thresholds, goodwill settlement ceilings, and signature enforcement. |
+| **Interactive Fraud Ring Topology** | Interactive SVG network graph isolating commercial re-shipper hotspots (Delaware 19810), proxy exit nodes, and synthetic identities. |
+| **Postman Collection v2.1** *(Postman Sponsor)* | Pre-built Postman collection with tests, environment variables, and grouped requests for all dispute defense workflows. |
+| **OpenAPI 3.1 & APIMatic Spec** *(APIMatic - $1,000)* | Standardized OpenAPI 3.1 contract and `apimatic.json` configuration for instant multi-language SDK and API portal generation. |
 | **Physical & Digital Forensics** | Visual inspection of delivery doorstep photos, satellite GPS coordinates (±2.4m accuracy), and network IP distance. |
-| **Syndicate Hunter Graph** | Identifies coordinated fraud rings targeting commercial freight re-shippers (e.g. Wilmington DE 19810). |
 | **1-Click PayPal API Submission** | Dispatches the synthesized evidence bundle directly to PayPal Sandbox with instant receipt acknowledgement. |
 | **Dual-Mode Engine** | Connect real PayPal Sandbox credentials (`PAYPAL_CLIENT_ID` / `SECRET`) or use the high-fidelity Sandbox Simulation mode for instant evaluation. |
 

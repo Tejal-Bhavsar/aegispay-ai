@@ -61,7 +61,8 @@ app.get('/api/disputes/:id', (req, res) => {
 // 5. Run Investigation (Synchronous)
 app.post('/api/disputes/:id/investigate', async (req, res) => {
   try {
-    const report = await orchestrator.runInvestigation(req.params.id);
+    const strategy = req.body?.strategy || req.query.strategy || 'LEGAL_AGGRESSIVE';
+    const report = await orchestrator.runInvestigation(req.params.id, null, strategy);
     const updatedDispute = disputeStore.getById(req.params.id);
     res.json({
       success: true,
@@ -76,6 +77,7 @@ app.post('/api/disputes/:id/investigate', async (req, res) => {
 // 6. SSE Real-Time Streaming Agent Investigation
 app.get('/api/disputes/:id/investigate-stream', async (req, res) => {
   const disputeId = req.params.id;
+  const strategy = req.query.strategy || 'LEGAL_AGGRESSIVE';
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -84,7 +86,7 @@ app.get('/api/disputes/:id/investigate-stream', async (req, res) => {
   try {
     await orchestrator.runInvestigation(disputeId, (step) => {
       res.write(`data: ${JSON.stringify(step)}\n\n`);
-    });
+    }, strategy);
     const updatedDispute = disputeStore.getById(disputeId);
     res.write(`data: ${JSON.stringify({ type: 'COMPLETE_PAYLOAD', dispute: updatedDispute })}\n\n`);
     res.end();

@@ -16,7 +16,7 @@ class SwarmOrchestrator {
     this.activeRuns = new Map();
   }
 
-  async runInvestigation(disputeId, onStepCallback = null) {
+  async runInvestigation(disputeId, onStepCallback = null, strategy = 'LEGAL_AGGRESSIVE') {
     const dispute = disputeStore.getById(disputeId);
     if (!dispute) {
       throw new Error(`Dispute ${disputeId} not found in repository.`);
@@ -37,7 +37,7 @@ class SwarmOrchestrator {
       agent: 'Orchestrator',
       timestamp: new Date().toISOString(),
       action: 'SPAWN_SWARM',
-      thought: `Spawning AegisPay Multi-Agent Swarm for PayPal Dispute [${dispute.dispute_id}].`,
+      thought: `Spawning AegisPay Multi-Agent Swarm for PayPal Dispute [${dispute.dispute_id}] using Strategy [${strategy}].`,
     });
 
     // Step 1: Sentinel Triage
@@ -79,9 +79,9 @@ class SwarmOrchestrator {
       agent: lex.name,
       timestamp: new Date().toISOString(),
       action: 'START_DRAFTING',
-      thought: 'Lex formatting PayPal Seller Protection evidence pack.',
+      thought: `Lex formatting PayPal Seller Protection evidence pack with strategy [${strategy}].`,
     });
-    const legalReport = await lex.draftRebuttal(dispute, forensicReport, oracleReport);
+    const legalReport = await lex.draftRebuttal(dispute, forensicReport, oracleReport, strategy);
     legalReport.logs.forEach((log) => emitStep({ phase: 'LEGAL_SYNTHESIS', ...log }));
 
     // Step 5: Pax Goodwill Evaluation

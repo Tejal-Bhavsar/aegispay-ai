@@ -21,6 +21,8 @@ import OracleSyndicate from './components/OracleSyndicate';
 import PayPalInspector from './components/PayPalInspector';
 import EvidenceModal from './components/EvidenceModal';
 import SettingsModal from './components/SettingsModal';
+import PolicyStudio from './components/PolicyStudio';
+import { Sliders } from 'lucide-react';
 
 export default function App() {
   const [disputes, setDisputes] = useState([]);
@@ -261,6 +263,14 @@ export default function App() {
           </button>
 
           <button
+            className={`tab-btn ${activeTab === 'POLICY_STUDIO' ? 'active' : ''}`}
+            onClick={() => setActiveTab('POLICY_STUDIO')}
+          >
+            <Sliders size={15} style={{ color: '#A5B4FC' }} />
+            <span>Policy Studio</span>
+          </button>
+
+          <button
             className={`tab-btn ${activeTab === 'PAYPAL_API' ? 'active' : ''}`}
             onClick={() => setActiveTab('PAYPAL_API')}
           >
@@ -297,6 +307,10 @@ export default function App() {
 
           {activeTab === 'SYNDICATES' && (
             <OracleSyndicate />
+          )}
+
+          {activeTab === 'POLICY_STUDIO' && (
+            <PolicyStudio />
           )}
 
           {activeTab === 'PAYPAL_API' && (
