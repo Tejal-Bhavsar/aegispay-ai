@@ -3,48 +3,38 @@ import {
   Shield,
   Layers,
   Sparkles,
-  Globe,
-  Code,
-  Sliders,
-  Send,
+  Terminal,
   RefreshCw,
   Key,
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 
-import TopNav from './components/TopNav';
 import AIAnalyzer from './components/AIAnalyzer';
 import DisputeGrid from './components/DisputeGrid';
-import ForensicsViewer from './components/ForensicsViewer';
-import PayPalInspector from './components/PayPalInspector';
-import PolicyStudio from './components/PolicyStudio';
+import BankIntegration from './components/BankIntegration';
 import EvidenceModal from './components/EvidenceModal';
 import SettingsModal from './components/SettingsModal';
 
 export default function App() {
   const [disputes, setDisputes] = useState([]);
-  const [analytics, setAnalytics] = useState(null);
   const [paypalStatus, setPaypalStatus] = useState(null);
-  const [activeTab, setActiveTab] = useState('AI_HUB'); // Default to the AI Hub!
+  const [activeTab, setActiveTab] = useState('AI_HUB'); // Default to AI Defense Hub
 
   // Modals & Selection
   const [selectedDispute, setSelectedDispute] = useState(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSubmittingEvidence, setIsSubmittingEvidence] = useState(false);
 
-  // Fetch live state from backend
+  // Fetch real disputes from backend
   const fetchData = useCallback(async () => {
     try {
-      const [disputesRes, analyticsRes, statusRes] = await Promise.all([
+      const [disputesRes, statusRes] = await Promise.all([
         fetch('/api/disputes').then((r) => r.json()),
-        fetch('/api/analytics').then((r) => r.json()),
         fetch('/api/paypal/status').then((r) => r.json()),
       ]);
 
       if (disputesRes.disputes) {
         setDisputes(disputesRes.disputes);
       }
-      setAnalytics(analyticsRes);
       setPaypalStatus(statusRes);
     } catch (err) {
       console.error('Failed to fetch platform state:', err);
@@ -87,7 +77,7 @@ export default function App() {
   return (
     <div className="bg-grid-pattern" style={{ minHeight: '100vh' }}>
       <div className="app-container">
-        {/* Streamlined Top Navigation */}
+        {/* Clean, Modern Header */}
         <header className="top-nav">
           <div className="brand-section">
             <div className="brand-logo-badge">
@@ -96,16 +86,16 @@ export default function App() {
             <div className="brand-titles">
               <h1>
                 AegisPay AI
-                <span className="brand-tag">PayPal Dispute Defense</span>
+                <span className="brand-tag">Autonomous Dispute Defense</span>
               </h1>
               <p className="brand-subtitle">
-                Autonomous AI Multi-Agent Swarm protecting merchants from friendly fraud &amp; chargebacks
+                Multi-Agent Fraud Defense &amp; Chargeback Adjudication for PayPal and Credit Cards
               </p>
             </div>
           </div>
 
           <div className="nav-actions">
-            {/* PayPal Sandbox Status */}
+            {/* PayPal Connection Pill */}
             <div
               className="mode-indicator-pill"
               onClick={() => setIsSettingsOpen(true)}
@@ -113,7 +103,7 @@ export default function App() {
             >
               <span className="pulse-dot online" />
               <span style={{ fontWeight: 600 }}>
-                {paypalStatus?.mode === 'LIVE_SANDBOX' ? 'PayPal Sandbox: Connected' : 'PayPal: Sandbox Active'}
+                {paypalStatus?.mode === 'LIVE_SANDBOX' ? 'PayPal Sandbox: Connected' : 'PayPal: Sandbox Mode'}
               </span>
               <Key size={13} style={{ color: 'var(--text-muted)' }} />
             </div>
@@ -130,14 +120,14 @@ export default function App() {
           </div>
         </header>
 
-        {/* Clear Tabbed Navigation */}
+        {/* 3 Focused, Purposeful Navigation Tabs */}
         <nav className="tabs-navigation">
           <button
             className={`tab-btn ${activeTab === 'AI_HUB' ? 'active' : ''}`}
             onClick={() => setActiveTab('AI_HUB')}
           >
             <Sparkles size={16} style={{ color: 'var(--paypal-cyan)' }} />
-            <span>AI Dispute Defense Hub (Core)</span>
+            <span>AI Dispute Defense Engine</span>
           </button>
 
           <button
@@ -145,32 +135,16 @@ export default function App() {
             onClick={() => setActiveTab('OPERATIONS')}
           >
             <Layers size={16} />
-            <span>Dispute Operations (AG Grid Table)</span>
+            <span>Dispute Operations (AG Grid)</span>
             <span className="tab-counter">{disputes.length}</span>
           </button>
 
           <button
-            className={`tab-btn ${activeTab === 'FORENSICS' ? 'active' : ''}`}
-            onClick={() => setActiveTab('FORENSICS')}
+            className={`tab-btn ${activeTab === 'INTEGRATION' ? 'active' : ''}`}
+            onClick={() => setActiveTab('INTEGRATION')}
           >
-            <Globe size={16} style={{ color: 'var(--emerald-400)' }} />
-            <span>Carrier GPS &amp; Telemetry Proof</span>
-          </button>
-
-          <button
-            className={`tab-btn ${activeTab === 'POLICY_STUDIO' ? 'active' : ''}`}
-            onClick={() => setActiveTab('POLICY_STUDIO')}
-          >
-            <Sliders size={16} style={{ color: '#A5B4FC' }} />
-            <span>Merchant Defense Policy</span>
-          </button>
-
-          <button
-            className={`tab-btn ${activeTab === 'PAYPAL_API' ? 'active' : ''}`}
-            onClick={() => setActiveTab('PAYPAL_API')}
-          >
-            <Code size={16} style={{ color: 'var(--amber-400)' }} />
-            <span>PayPal REST API Inspector</span>
+            <Terminal size={16} style={{ color: 'var(--emerald-400)' }} />
+            <span>Bank API Integration</span>
           </button>
         </nav>
 
@@ -190,16 +164,8 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'FORENSICS' && (
-            <ForensicsViewer disputes={disputes} />
-          )}
-
-          {activeTab === 'POLICY_STUDIO' && (
-            <PolicyStudio />
-          )}
-
-          {activeTab === 'PAYPAL_API' && (
-            <PayPalInspector disputes={disputes} />
+          {activeTab === 'INTEGRATION' && (
+            <BankIntegration />
           )}
         </main>
 

@@ -563,6 +563,20 @@ h1, h2, h3, h4, h5 {
 }
 
 /* AG Grid custom styling - Strict Dark Theme Overrides */
+:root,
+.ag-theme-quartz,
+.ag-theme-quartz-dark,
+.ag-theme-quartz-auto-dark {
+  --ag-background-color: #0B1120 !important;
+  --ag-foreground-color: #F8FAFC !important;
+  --ag-header-background-color: #0F172A !important;
+  --ag-header-foreground-color: #94A3B8 !important;
+  --ag-odd-row-background-color: #0B1120 !important;
+  --ag-row-hover-color: #172554 !important;
+  --ag-border-color: rgba(255, 255, 255, 0.08) !important;
+  --ag-row-border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
 .ag-theme-quartz-dark,
 .ag-theme-quartz-dark .ag-root-wrapper,
 .ag-theme-quartz-dark .ag-root-wrapper-body,

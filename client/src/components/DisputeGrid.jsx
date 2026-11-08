@@ -384,7 +384,7 @@ export default function DisputeGrid({ disputes, onSelectDispute, onDeploySwarm }
       </div>
 
       {/* The AG Grid Table Component */}
-      <div className="ag-theme-quartz-dark" style={{ height: 420, width: '100%', backgroundColor: '#0B1120', borderRadius: '12px', overflow: 'hidden' }}>
+      <div className="ag-theme-quartz-dark" style={{ width: '100%', backgroundColor: '#0B1120', borderRadius: '12px', overflow: 'hidden' }}>
         <AgGridReact
           ref={gridRef}
           rowData={filteredRowData}
@@ -395,6 +395,7 @@ export default function DisputeGrid({ disputes, onSelectDispute, onDeploySwarm }
           onRowClicked={onRowClicked}
           animateRows={true}
           suppressCellFocus={true}
+          domLayout="autoHeight"
         />
       </div>
 
