@@ -1,0 +1,26 @@
+{
+  "name": "aegispay-ai",
+  "version": "1.0.0",
+  "description": "AegisPay AI - Autonomous Multi-Agent Dispute Defense & Fraud Interception Platform for PayPal",
+  "scripts": {
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"npm run server\" \"npm run client\"",
+    "server": "cd server && node src/index.js",
+    "client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
+  },
+  "keywords": [
+    "paypal",
+    "hackathon",
+    "dispute-defense",
+    "multi-agent",
+    "ai",
+    "ag-grid",
+    "fraud-prevention"
+  ],
+  "author": "AegisPay Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
