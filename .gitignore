@@ -17,3 +17,9 @@ dist-ssr/
 # OS
 .DS_Store
 Thumbs.db
+
+# Skills and Engine Binaries
+**/skills/impeccable/scripts/bin/
+*.local.json
+.impeccable/config.local.json
+
