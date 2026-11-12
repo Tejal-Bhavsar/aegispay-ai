@@ -1,441 +1,329 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+import { ModuleRegistry, AllCommunityModule, themeQuartz } from 'ag-grid-community';
+import { Search, ShieldCheck, ShieldAlert, ArrowUpRight, FileText } from 'lucide-react';
 
-// AG Grid styles
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-quartz.css';
-
-import {
-  Search,
-  ShieldCheck,
-  ShieldAlert,
-  Bot,
-  ExternalLink,
-  Clock,
-  Sparkles,
-  CheckCircle2,
-  Package,
-} from 'lucide-react';
-
-// Register all community modules
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-export default function DisputeGrid({ disputes, onSelectDispute, onDeploySwarm }) {
-  const gridRef = useRef();
+const merchantLightTheme = themeQuartz.withParams({
+  browserColorScheme: 'light',
+  accentColor: '#0B5FD6',
+  backgroundColor: '#FFFFFF',
+  foregroundColor: '#0E1726',
+  headerBackgroundColor: '#F7F8FA',
+  headerTextColor: '#475467',
+  headerFontWeight: 600,
+  headerFontSize: 12,
+  dataFontSize: 13,
+  borderColor: '#E4E7EC',
+  rowBorder: true,
+  columnBorder: false,
+  headerColumnBorder: false,
+  rowHoverColor: '#F8FAFC',
+  selectedRowBackgroundColor: '#EFF6FF',
+  cellHorizontalPadding: 14,
+  rowVerticalPaddingScale: 1.1,
+  wrapperBorder: false,
+  wrapperBorderRadius: 0,
+});
+
+const FILTER_DEFS = [
+  { id: 'ALL', label: 'All disputes' },
+  { id: 'INR', label: 'Not received' },
+  { id: 'UNAUTHORIZED', label: 'Unauthorized' },
+  { id: 'SNAD', label: 'Not as described' },
+  { id: 'PROTECTED', label: 'Seller protected' },
+  { id: 'DEFENDED', label: 'Submitted' },
+];
+
+const REASON_LABELS = {
+  MERCHANDISE_OR_SERVICE_NOT_RECEIVED: 'Item not received',
+  UNAUTHORIZED: 'Unauthorized payment',
+  MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED: 'Not as described',
+};
+
+const STATUS_MAP = {
+  DEFENDED_TO_PAYPAL: { label: 'Sent to PayPal', cls: 'defended' },
+  EVIDENCE_READY: { label: 'Packet ready', cls: 'ready' },
+  INVESTIGATING: { label: 'Reviewing', cls: 'pending' },
+  SETTLED_GOODWILL: { label: 'Goodwill offer', cls: 'settled' },
+  ESCALATED_FRAUD: { label: 'Flagged cluster', cls: 'escalated' },
+  PENDING_REVIEW: { label: 'Needs review', cls: 'pending' },
+};
+
+function matchesFilter(dispute, filterId) {
+  switch (filterId) {
+    case 'INR':
+      return dispute.dispute_reason === 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED';
+    case 'UNAUTHORIZED':
+      return dispute.dispute_reason === 'UNAUTHORIZED';
+    case 'SNAD':
+      return dispute.dispute_reason === 'MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED';
+    case 'PROTECTED':
+      return Boolean(dispute.seller_protection?.eligible);
+    case 'DEFENDED':
+      return dispute.ai_state?.status === 'DEFENDED_TO_PAYPAL';
+    default:
+      return true;
+  }
+}
+
+export default function DisputeGrid({ disputes = [], isLoading = false, onSelectDispute, onDeploySwarm }) {
   const [quickFilterText, setQuickFilterText] = useState('');
-  const [activeFilterCategory, setActiveFilterCategory] = useState('ALL');
+  const [activeFilter, setActiveFilter] = useState('ALL');
 
-  // Filter disputes based on category chips
-  const filteredRowData = useMemo(() => {
-    if (!disputes) return [];
-    if (activeFilterCategory === 'ALL') return disputes;
-    if (activeFilterCategory === 'INR') {
-      return disputes.filter((d) => d.dispute_reason === 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED');
+  const filterCounts = useMemo(() => {
+    const counts = {};
+    for (const f of FILTER_DEFS) {
+      counts[f.id] = disputes.filter((d) => matchesFilter(d, f.id)).length;
     }
-    if (activeFilterCategory === 'UNAUTHORIZED') {
-      return disputes.filter((d) => d.dispute_reason === 'UNAUTHORIZED');
-    }
-    if (activeFilterCategory === 'SNAD') {
-      return disputes.filter((d) => d.dispute_reason === 'MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED');
-    }
-    if (activeFilterCategory === 'PROTECTED') {
-      return disputes.filter((d) => d.seller_protection?.eligible);
-    }
-    if (activeFilterCategory === 'DEFENDED') {
-      return disputes.filter((d) => d.ai_state?.status === 'DEFENDED_TO_PAYPAL');
-    }
-    return disputes;
-  }, [disputes, activeFilterCategory]);
+    return counts;
+  }, [disputes]);
 
-  // Custom Cell Renderers
-  const DisputeIdRenderer = useCallback((props) => {
-    const data = props.data;
-    if (!data) return null;
+  const filteredData = useMemo(() => {
+    return disputes.filter((d) => matchesFilter(d, activeFilter));
+  }, [disputes, activeFilter]);
 
-    let reasonBadgeClass = 'status-pill ready';
-    let reasonText = 'INR (Not Received)';
-    if (data.dispute_reason === 'UNAUTHORIZED') {
-      reasonBadgeClass = 'status-pill escalated';
-      reasonText = 'Unauthorized Card';
-    } else if (data.dispute_reason === 'MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED') {
-      reasonBadgeClass = 'status-pill pending';
-      reasonText = 'SNAD (Condition)';
-    }
-
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', justifyContent: 'center', height: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <strong style={{ color: '#FFFFFF', fontFamily: 'var(--font-mono)', fontSize: '0.825rem', letterSpacing: '0.02em' }}>
-            {data.dispute_id}
-          </strong>
-          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            {data.dispute_life_cycle_stage?.replace(/_/g, ' ')}
-          </span>
-        </div>
-        <div>
-          <span className={reasonBadgeClass} style={{ padding: '2px 8px', fontSize: '0.68rem', borderRadius: '4px' }}>
-            {reasonText}
-          </span>
-        </div>
-      </div>
-    );
-  }, []);
-
-  const ItemRenderer = useCallback((props) => {
-    const data = props.data;
-    if (!data) return null;
-    const tx = data.transaction_details || {};
-
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', height: '100%' }}>
-        {tx.item_image ? (
-          <img
-            src={tx.item_image}
-            alt={tx.item_title}
-            style={{ width: '38px', height: '38px', borderRadius: '8px', objectFit: 'cover', border: '1px solid rgba(255, 255, 255, 0.12)', flexShrink: 0 }}
-          />
-        ) : (
-          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Package size={18} style={{ color: 'var(--text-muted)' }} />
-          </div>
-        )}
-        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: '2px' }}>
-          <span
-            style={{
-              fontSize: '0.825rem',
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              maxWidth: '260px',
-            }}
-            title={tx.item_title}
-          >
-            {tx.item_title}
-          </span>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-            Order {tx.order_id}
-          </span>
-        </div>
-      </div>
-    );
-  }, []);
-
-  const AmountRenderer = useCallback((props) => {
-    const data = props.data;
-    if (!data) return null;
-    const amount = data.dispute_amount?.value || '0.00';
-
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%', gap: '2px' }}>
-        <strong style={{ fontSize: '0.925rem', color: '#FFFFFF', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-          ${parseFloat(amount).toFixed(2)}
-        </strong>
-        <span style={{ fontSize: '0.675rem', color: 'var(--rose-400)', fontWeight: 500 }}>
-          +$15.00 fee
-        </span>
-      </div>
-    );
-  }, []);
-
-  const BuyerRenderer = useCallback((props) => {
-    const data = props.data;
-    if (!data) return null;
-    const buyer = data.buyer_info || {};
-
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%', gap: '2px' }}>
-        <span style={{ fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-          {buyer.name || 'Unknown Buyer'}
-        </span>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px' }}>
-          {buyer.email || data.transaction_details?.shipping_address?.split(',')[0] || ''}
-        </span>
-      </div>
-    );
-  }, []);
-
-  const ProtectionRenderer = useCallback((props) => {
-    const data = props.data;
-    if (!data) return null;
-    const isEligible = data.seller_protection?.eligible;
-
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-        {isEligible ? (
-          <span className="seller-protection-badge eligible" title={data.seller_protection?.protection_reason}>
-            <ShieldCheck size={13} />
-            PayPal Backed
-          </span>
-        ) : (
-          <span className="seller-protection-badge ineligible" title={data.seller_protection?.protection_reason}>
-            <ShieldAlert size={13} />
-            Ineligible
-          </span>
-        )}
-      </div>
-    );
-  }, []);
-
-  const RiskRenderer = useCallback((props) => {
-    const data = props.data;
-    if (!data) return null;
-    const confidence = data.ai_state?.defense_confidence || 90;
-    const isHigh = confidence >= 85;
-
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '100%', width: '100%' }}>
-        <div className="risk-bar" style={{ width: '56px', height: '6px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '999px', overflow: 'hidden' }}>
-          <div
-            className="risk-bar-fill"
-            style={{
-              width: `${confidence}%`,
-              height: '100%',
-              borderRadius: '999px',
-              background: isHigh ? 'linear-gradient(90deg, #10B981, #34D399)' : 'linear-gradient(90deg, #F59E0B, #FBBF24)',
-            }}
-          />
-        </div>
-        <span style={{ fontSize: '0.785rem', fontWeight: 700, color: isHigh ? 'var(--emerald-400)' : 'var(--amber-400)', whiteSpace: 'nowrap' }}>
-          {confidence}% Win Prob
-        </span>
-      </div>
-    );
-  }, []);
-
-  const StatusRenderer = useCallback((props) => {
-    const data = props.data;
-    if (!data) return null;
-    const status = data.ai_state?.status || 'PENDING_REVIEW';
-
-    let pillClass = 'status-pill pending';
-    let label = 'Pending Triage';
-
-    if (status === 'DEFENDED_TO_PAYPAL') {
-      pillClass = 'status-pill defended';
-      label = 'Defended to PayPal';
-    } else if (status === 'EVIDENCE_READY') {
-      pillClass = 'status-pill ready';
-      label = 'Evidence Ready';
-    } else if (status === 'SETTLED') {
-      pillClass = 'status-pill settled';
-      label = 'Goodwill Settled';
-    }
-
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-        <span className={pillClass}>
-          {status === 'DEFENDED_TO_PAYPAL' && <CheckCircle2 size={12} />}
-          {status === 'PENDING_REVIEW' && <Clock size={12} />}
-          {label}
-        </span>
-      </div>
-    );
-  }, []);
-
-  const ActionRenderer = useCallback(
-    (props) => {
-      const data = props.data;
-      if (!data) return null;
-      const isDefended = data.ai_state?.status === 'DEFENDED_TO_PAYPAL';
-
-      return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '100%' }}>
-          {isDefended ? (
-            <button
-              className="btn btn-secondary"
-              style={{ padding: '0.35rem 0.75rem', fontSize: '0.75rem', borderRadius: '7px' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectDispute(data);
-              }}
-            >
-              <ExternalLink size={12} />
-              Dossier
-            </button>
-          ) : (
-            <button
-              className="btn btn-primary"
-              style={{
-                padding: '0.35rem 0.8rem',
-                fontSize: '0.75rem',
-                borderRadius: '7px',
-                background: 'linear-gradient(135deg, #0070BA, #00509E)',
-                boxShadow: '0 2px 8px rgba(0, 112, 186, 0.4)',
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeploySwarm(data.dispute_id);
-              }}
-            >
-              <Sparkles size={12} />
-              Deploy Swarm
-            </button>
-          )}
-        </div>
-      );
-    },
-    [onSelectDispute, onDeploySwarm]
-  );
-
-  // AG Grid Column Definitions
   const columnDefs = useMemo(
     () => [
       {
-        headerName: 'Dispute & Reason',
+        headerName: 'Case & deadline',
         field: 'dispute_id',
-        width: 220,
-        minWidth: 200,
-        cellRenderer: DisputeIdRenderer,
+        width: 176,
+        sortable: true,
+        cellRenderer: (params) => {
+          const row = params.data;
+          const isDone = row.ai_state?.status === 'DEFENDED_TO_PAYPAL';
+          const msLeft = row.response_deadline ? new Date(row.response_deadline).getTime() - Date.now() : 7 * 86400000;
+          const daysLeft = Math.max(0, Math.ceil(msLeft / 86400000));
+          const pctElapsed = Math.min(100, Math.max(8, ((21 - Math.min(21, daysLeft)) / 21) * 100));
+          const deadlineTone = isDone ? 'done' : daysLeft <= 3 ? 'urgent' : daysLeft <= 7 ? 'soon' : '';
+
+          return (
+            <div className={`deadline ${deadlineTone}`}>
+              <span className="num" style={{ fontWeight: 600, fontSize: '12.5px', color: 'var(--ink)' }}>
+                {row.dispute_id}
+              </span>
+              <span className="deadline-text">
+                {isDone ? 'Evidence sent' : daysLeft === 0 ? 'Due today' : `${daysLeft}d left`}
+              </span>
+              <div className="deadline-track">
+                <div className="deadline-fill" style={{ width: `${isDone ? 100 : pctElapsed}%` }} />
+              </div>
+            </div>
+          );
+        },
       },
       {
-        headerName: 'Fulfillment & Item',
+        headerName: 'Item & claim reason',
         field: 'transaction_details.item_title',
+        flex: 1.5,
         minWidth: 260,
-        flex: 1.2,
-        cellRenderer: ItemRenderer,
+        sortable: true,
+        cellRenderer: (params) => {
+          const row = params.data;
+          const tx = row.transaction_details || {};
+          const reason = REASON_LABELS[row.dispute_reason] || row.dispute_reason;
+          return (
+            <div className="cell-row">
+              {tx.item_image && (
+                <img className="thumb" src={tx.item_image} alt="" loading="lazy" />
+              )}
+              <div className="cell-stack">
+                <span className="cell-primary" title={tx.item_title}>
+                  {tx.item_title || 'Order item'}
+                </span>
+                <span className="cell-secondary">
+                  {reason} · <span className="num">{row.carrier_tracking_key || tx.order_id}</span>
+                </span>
+              </div>
+            </div>
+          );
+        },
       },
       {
-        headerName: 'Claim Amount',
+        headerName: 'Amount',
         field: 'dispute_amount.value',
-        width: 130,
-        cellRenderer: AmountRenderer,
+        width: 120,
+        sortable: true,
+        comparator: (a, b) => parseFloat(a || 0) - parseFloat(b || 0),
+        cellRenderer: (params) => {
+          const val = parseFloat(params.value || 0).toFixed(2);
+          const currency = params.data.dispute_amount?.currency_code || 'USD';
+          return (
+            <div className="cell-stack">
+              <span className="cell-primary num">${val}</span>
+              <span className="cell-secondary num">{currency}</span>
+            </div>
+          );
+        },
       },
       {
-        headerName: 'Buyer',
+        headerName: 'Buyer account',
         field: 'buyer_info.name',
-        width: 170,
-        cellRenderer: BuyerRenderer,
+        width: 190,
+        sortable: true,
+        cellRenderer: (params) => {
+          const buyer = params.data.buyer_info || {};
+          return (
+            <div className="cell-stack">
+              <span className="cell-primary">{buyer.name || 'Unknown buyer'}</span>
+              <span className="cell-secondary">
+                {buyer.account_age_days ? `${buyer.account_age_days}d tenure` : 'PayPal account'} ·{' '}
+                {buyer.prior_dispute_count || 0} prior
+              </span>
+            </div>
+          );
+        },
       },
       {
-        headerName: 'PayPal Seller Protection',
+        headerName: 'Protection',
         field: 'seller_protection.eligible',
-        width: 185,
-        cellRenderer: ProtectionRenderer,
+        width: 145,
+        sortable: true,
+        cellRenderer: (params) => {
+          const eligible = Boolean(params.value);
+          return (
+            <span className={`seller-protection-badge ${eligible ? 'eligible' : 'ineligible'}`}>
+              {eligible ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
+              {eligible ? 'Protected' : 'Uninsured'}
+            </span>
+          );
+        },
       },
       {
-        headerName: 'AI Defense Win Prob',
+        headerName: 'Confidence',
         field: 'ai_state.defense_confidence',
-        width: 180,
-        cellRenderer: RiskRenderer,
+        width: 138,
+        sortable: true,
+        cellRenderer: (params) => {
+          const score = Number(params.value || 0);
+          const fillColor =
+            score >= 85 ? 'var(--success)' : score >= 65 ? 'var(--accent)' : 'var(--warning)';
+          return (
+            <div className="confidence">
+              <span className="confidence-value num">{score}%</span>
+              <div className="confidence-track">
+                <div className="confidence-fill" style={{ width: `${score}%`, background: fillColor }} />
+              </div>
+            </div>
+          );
+        },
       },
       {
-        headerName: 'Defense Status',
+        headerName: 'Status',
         field: 'ai_state.status',
-        width: 175,
-        cellRenderer: StatusRenderer,
+        width: 142,
+        sortable: true,
+        cellRenderer: (params) => {
+          const state = STATUS_MAP[params.value] || STATUS_MAP.PENDING_REVIEW;
+          return <span className={`status-pill ${state.cls}`}>{state.label}</span>;
+        },
       },
       {
         headerName: 'Action',
-        width: 140,
-        cellRenderer: ActionRenderer,
+        field: 'dispute_id',
+        width: 186,
         pinned: 'right',
+        sortable: false,
+        filter: false,
+        cellRenderer: (params) => {
+          const row = params.data;
+          const isDone = row.ai_state?.status === 'DEFENDED_TO_PAYPAL';
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '100%' }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectDispute?.(row);
+                }}
+                title="View evidence packet"
+              >
+                <FileText size={13} />
+                Packet
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${isDone ? 'btn-ghost' : 'btn-primary'}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeploySwarm?.(row.dispute_id);
+                }}
+              >
+                {isDone ? 'View' : 'Review'}
+                <ArrowUpRight size={13} />
+              </button>
+            </div>
+          );
+        },
       },
     ],
-    [DisputeIdRenderer, ItemRenderer, AmountRenderer, BuyerRenderer, ProtectionRenderer, RiskRenderer, StatusRenderer, ActionRenderer]
-  );
-
-  const defaultColDef = useMemo(
-    () => ({
-      sortable: true,
-      filter: true,
-      resizable: true,
-    }),
-    []
-  );
-
-  const onRowClicked = useCallback(
-    (event) => {
-      if (event.data) {
-        onSelectDispute(event.data);
-      }
-    },
-    [onSelectDispute]
+    [onSelectDispute, onDeploySwarm]
   );
 
   return (
-    <section className="ag-grid-container">
-      {/* Grid Toolbar with Search and Category Filter Chips */}
+    <div className="queue">
       <div className="grid-toolbar">
         <div className="search-input-wrapper">
-          <Search size={15} style={{ color: 'var(--text-muted)' }} />
+          <Search size={14} className="search-icon" />
           <input
-            id="dispute-search-input"
-            type="text"
-            placeholder="Search dispute ID, buyer, tracking, item..."
+            type="search"
+            className="form-input"
+            placeholder="Search dispute ID, buyer name, SKU, or tracking key..."
             value={quickFilterText}
             onChange={(e) => setQuickFilterText(e.target.value)}
+            aria-label="Filter disputes queue"
           />
         </div>
 
-        <div className="filter-chips-group">
-          <button
-            className={`filter-chip ${activeFilterCategory === 'ALL' ? 'active' : ''}`}
-            onClick={() => setActiveFilterCategory('ALL')}
-          >
-            All Disputes ({disputes?.length || 0})
-          </button>
-          <button
-            className={`filter-chip ${activeFilterCategory === 'INR' ? 'active' : ''}`}
-            onClick={() => setActiveFilterCategory('INR')}
-          >
-            Item Not Received
-          </button>
-          <button
-            className={`filter-chip ${activeFilterCategory === 'UNAUTHORIZED' ? 'active' : ''}`}
-            onClick={() => setActiveFilterCategory('UNAUTHORIZED')}
-          >
-            Unauthorized Card
-          </button>
-          <button
-            className={`filter-chip ${activeFilterCategory === 'SNAD' ? 'active' : ''}`}
-            onClick={() => setActiveFilterCategory('SNAD')}
-          >
-            SNAD (Condition)
-          </button>
-          <button
-            className={`filter-chip ${activeFilterCategory === 'PROTECTED' ? 'active' : ''}`}
-            onClick={() => setActiveFilterCategory('PROTECTED')}
-          >
-            PayPal Protected
-          </button>
-          <button
-            className={`filter-chip ${activeFilterCategory === 'DEFENDED' ? 'active' : ''}`}
-            onClick={() => setActiveFilterCategory('DEFENDED')}
-          >
-            Defended
-          </button>
+        <div className="filter-chips-group" role="tablist" aria-label="Dispute category filters">
+          {FILTER_DEFS.map((filter) => {
+            const active = activeFilter === filter.id;
+            return (
+              <button
+                key={filter.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                className={`filter-chip ${active ? 'active' : ''}`}
+                onClick={() => setActiveFilter(filter.id)}
+              >
+                <span>{filter.label}</span>
+                <span className="chip-count num">{filterCounts[filter.id] || 0}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* The AG Grid Table Component */}
-      <div className="ag-theme-quartz-dark" style={{ width: '100%', backgroundColor: '#0B1120', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-        <AgGridReact
-          ref={gridRef}
-          rowData={filteredRowData}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          quickFilterText={quickFilterText}
-          rowSelection="single"
-          onRowClicked={onRowClicked}
-          animateRows={true}
-          suppressCellFocus={true}
-          domLayout="autoHeight"
-          rowHeight={68}
-          headerHeight={46}
-        />
-      </div>
+      {isLoading && disputes.length === 0 ? (
+        <div className="empty-state">Loading active PayPal disputes...</div>
+      ) : (
+        <div style={{ width: '100%' }}>
+          <AgGridReact
+            theme={merchantLightTheme}
+            rowData={filteredData}
+            columnDefs={columnDefs}
+            quickFilterText={quickFilterText}
+            domLayout="autoHeight"
+            rowHeight={66}
+            headerHeight={40}
+            suppressCellFocus={true}
+            onRowClicked={(e) => onSelectDispute?.(e.data)}
+            overlayNoRowsTemplate='<span style="color:#475467;font-size:13px;">No disputes match the active filter.</span>'
+          />
+        </div>
+      )}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+      <div className="queue-foot">
         <span>
-          💡 Click any row to inspect deep carrier GPS proof, device telemetry, and bank rebuttal dossier.
+          Showing <strong className="num">{filteredData.length}</strong> of{' '}
+          <strong className="num">{disputes.length}</strong> PayPal claims
         </span>
-        <span>
-          Powered by <strong>AG Grid</strong> &amp; <strong>PayPal Developer Platform</strong>
-        </span>
+        <span>Select a row to inspect carrier logs &amp; Seller Protection packet, or click Review for AI drafting.</span>
       </div>
-    </section>
+    </div>
   );
 }

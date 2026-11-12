@@ -1,362 +1,318 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Send,
-  ShieldCheck,
-  CheckCircle2,
-  FileText,
-  MapPin,
-  Clock,
+  Copy,
+  Check,
   Printer,
-  Sparkles,
-  Scale,
-  HeartHandshake,
+  ShieldCheck,
   ShieldAlert,
+  ArrowUpRight,
+  CheckCircle2,
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
+
+function buildDynamicRebuttal(dispute, strategy) {
+  const existing = dispute.ai_state?.investigation_report?.formal_rebuttal_letter;
+  if (existing && strategy === 'LEGAL_AGGRESSIVE') {
+    return existing;
+  }
+
+  const tx = dispute.transaction_details || {};
+  const buyer = dispute.buyer_info || {};
+  const ship = dispute.shipping_address || {};
+  const amount = parseFloat(dispute.dispute_amount?.value || 0).toFixed(2);
+  const currency = dispute.dispute_amount?.currency_code || 'USD';
+  const destination = `${ship.line1 || 'Verified PayPal address'}, ${ship.city || ''} ${ship.state || ''} ${ship.postal_code || ''}`.trim();
+  const tracking = dispute.carrier_tracking_key || 'CARRIER-VERIFIED';
+
+  if (strategy === 'DIPLOMATIC_INQUIRY') {
+    return `TO: PayPal Resolution Center & Buyer (${buyer.name || 'Cardholder'})
+RE: Resolution Offer — Dispute ${dispute.dispute_id}
+ORDER: ${tx.order_id || dispute.dispute_id} · ITEM: ${tx.item_title || 'Purchased merchandise'}
+
+Hello ${buyer.name || 'Customer'},
+
+We value your business and reviewed your concern regarding order ${tx.order_id || dispute.dispute_id} (${currency} ${amount}).
+Carrier records (${tracking}) show the parcel arrived at ${destination}. If you still have concerns about condition or delivery access, we are offering a prompt partial goodwill credit or prepaid return label so we can resolve this directly without an extended claim.
+
+Please reply in the PayPal Resolution Center if you would like to accept this resolution.
+
+Sincerely,
+Merchant Support Team`;
+  }
+
+  if (strategy === 'SYNDICATE_FRAUD_ESCALATION') {
+    return `TO: PayPal Risk & Disputes Directorate
+RE: Escalation Notice — Commercial Forwarder / Linked Cluster Indicators (${dispute.dispute_id})
+TRANSACTION: ${tx.transaction_id || tx.order_id} · AMOUNT: ${currency} ${amount}
+
+REVIEW COMMITTEE,
+
+This transaction matches shared address and network indicators tied to commercial freight-forwarding facilities.
+1. Delivery Verification: Tracking ${tracking} confirms physical handoff to ${ship.recipient_name || buyer.name} at ${destination}.
+2. Policy Coverage: Under PayPal Seller Protection terms, orders shipped to the verified PayPal transaction address with valid tracking and commercial receiving sign-off satisfy merchant fulfillment obligations.
+3. Risk Note: Buyer account (${buyer.paypal_account_id || 'PayPal Buyer'}, tenure ${buyer.account_age_days || 'N/A'} days) shares shipment routing attributes with flagged high-risk drop points.
+
+We request immediate closure in favor of the merchant and release of ${currency} ${amount}.`;
+  }
+
+  return `TO: PayPal Dispute Adjudication Directorate
+RE: Formal Merchant Rebuttal — Dispute ${dispute.dispute_id}
+TRANSACTION ID: ${tx.transaction_id || tx.order_id || 'N/A'}
+DISPUTE REASON: ${dispute.dispute_reason}
+DISPUTED AMOUNT: ${currency} ${amount}
+
+REVIEW COMMITTEE,
+
+The merchant submits this evidence packet establishing legitimate fulfillment and delivery of "${tx.item_title || 'Order merchandise'}" to the buyer's PayPal-verified shipping address.
+
+1. CARRIER PROOF OF DELIVERY
+   - Tracking Reference: ${tracking}
+   - Recipient: ${ship.recipient_name || buyer.name || 'Cardholder'}
+   - Verified Address: ${destination}
+   - Carrier Status: Delivered with electronic scan confirmation prior to dispute filing.
+
+2. PAYPAL SELLER PROTECTION ELIGIBILITY
+   - Status: ${dispute.seller_protection?.eligible ? 'Eligible' : 'Review Required'}
+   - Notes: ${dispute.seller_protection?.protection_reason || 'Shipped to verified PayPal transaction address with valid carrier tracking.'}
+
+We respectfully request closure of dispute ${dispute.dispute_id} in favor of the merchant and release of the held ${currency} ${amount}.`;
+}
 
 export default function EvidenceModal({
   dispute,
   onClose,
   onSubmitToPayPal,
-  isSubmitting,
+  isSubmitting = false,
+  onReviewCase,
 }) {
   const [activeTab, setActiveTab] = useState('REBUTTAL');
-  const [selectedStrategy, setSelectedStrategy] = useState('LEGAL_AGGRESSIVE');
+  const [strategy, setStrategy] = useState(
+    dispute?.ai_state?.recommended_action === 'ESCALATE_FRAUD_RING'
+      ? 'SYNDICATE_FRAUD_ESCALATION'
+      : dispute?.ai_state?.recommended_action === 'SETTLE_GOODWILL'
+      ? 'DIPLOMATIC_INQUIRY'
+      : 'LEGAL_AGGRESSIVE'
+  );
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
 
   if (!dispute) return null;
 
   const isDefended = dispute.ai_state?.status === 'DEFENDED_TO_PAYPAL';
-  const report = dispute.ai_state?.investigation_report;
-  const carrier = dispute.carrier_tracking_key;
-  const isINR = dispute.dispute_reason === 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED';
+  const protectedEligible = Boolean(dispute.seller_protection?.eligible);
+  const tx = dispute.transaction_details || {};
+  const buyer = dispute.buyer_info || {};
+  const ship = dispute.shipping_address || {};
+  const amount = parseFloat(dispute.dispute_amount?.value || 0).toFixed(2);
+  const rebuttalText = buildDynamicRebuttal(dispute, strategy);
 
-  // Dynamic rebuttal drafts based on selected strategy
-  const getRebuttalContent = () => {
-    if (selectedStrategy === 'DIPLOMATIC_INQUIRY') {
-      return `
-TO: PayPal Resolution Center & ${dispute.buyer_info.name}
-RE: Friendly Inquiry Resolution for Order #${dispute.transaction_details.order_id}
-DISPUTE ID: ${dispute.dispute_id}
-CLAIMED AMOUNT: $${dispute.dispute_amount.value} USD
-
-DEAR VALUED CUSTOMER & RESOLUTION TEAM,
-
-We are committed to delivering five-star satisfaction on every purchase. We received notice of your inquiry regarding ${dispute.transaction_details.item_title}.
-
-1. TRACKING DETAILS & DELIVERY STATUS
-Our records confirm that your package was shipped via FedEx Ground under tracking #948210389102381. Carrier records confirm delivery to your specified shipping address (${dispute.shipping_address.line1}, ${dispute.shipping_address.city}) on 2026-11-04 at 14:32 UTC (delivered to FRONT_DOOR_PORCH).
-
-2. RESOLUTION OPTIONS
-If the package was mislaid or placed in a community locker, please check around your front porch or building reception. Should you have any concerns regarding the product itself, our support team is available 24/7 to issue a replacement or store credit without requiring prolonged bank processing.
-
-We respectfully submit the verified tracking confirmation and request resolution in accordance with PayPal guidelines.
-`.trim();
-    }
-
-    if (selectedStrategy === 'SYNDICATE_FRAUD_ESCALATION') {
-      return `
-TO: PayPal Risk & Fraud Operations Directorate
-CASE REF: FRAUD_RING_ESCALATION // DISPUTE ${dispute.dispute_id}
-ORDER ID: ${dispute.transaction_details.order_id}
-FLAGGED AMOUNT: $${dispute.dispute_amount.value} USD
-SUSPECT ENTITY: ${dispute.buyer_info.name} (${dispute.buyer_info.email})
-
-FORMAL CRIMINAL & SYNDICATE FRAUD REPORT:
-
-AegisPay's Oracle Intelligence Hunter has isolated transaction #${dispute.transaction_details.order_id} as part of a high-velocity coordinated chargeback syndicate.
-
-1. SYNDICATE INDICATORS & NETWORK CORRELATION
-   - Re-Shipper Hotspot: Destination [${dispute.shipping_address.line1}] matches known commercial freight-forwarding transshipment hub (Delaware Commercial Proxy Drop).
-   - Datacenter Proxy: Checkout originated from IP 70.112.44.89, flagged for cross-merchant velocity anomalies.
-   - Bot Checkout Velocity: Transaction was completed via automated checkout script in 42 seconds.
-
-2. EVIDENCE OF DELIVERY TO DESIGNATED FREIGHT FORWARDER
-   - Carrier: FedEx Ground (Tracking: 948210389102381)
-   - Destination Delivery: Handed to consignee on 2026-11-04 14:32:18 UTC.
-   - Satellite GPS: Fix logged at Lat 30.2672, Lon -97.7431 (Accuracy: 2.4m).
-
-3. ACTION REQUESTED
-In accordance with PayPal Acceptable Use & Seller Protection rules, merchant fulfillment to the buyer's specified address is complete. We request immediate dispute dismissal and referral of account [${dispute.buyer_info.paypal_account_id}] to PayPal Global Fraud Investigation.
-`.trim();
-    }
-
-    // Default: Strict Legal Aggressive
-    return report?.legal?.formal_rebuttal_letter || `
-TO: PayPal Dispute Adjudication Team & Card Issuing Bank
-RE: Formal Merchant Rebuttal for Dispute ${dispute.dispute_id}
-TRANSACTION ID: ${dispute.transaction_details.transaction_id}
-ORDER ID: ${dispute.transaction_details.order_id}
-CLAIMED AMOUNT: USD ${dispute.dispute_amount.value}
-CLAIM REASON: ${dispute.dispute_reason}
-
-ESTEEMED REVIEW COMMITTEE,
-
-The merchant respectfully submits this formal rebuttal along with conclusive physical and digital evidence demonstrating that the disputed transaction was legitimately authorized, fulfilled in exact accordance with merchant terms, and delivered directly to the cardholder.
-
-1. PROOF OF PHYSICAL DELIVERY (PayPal Seller Protection Compliant)
-   - Carrier: FedEx Ground
-   - Tracking Number: 948210389102381
-   - Delivery Timestamp: 2026-11-04T14:32:18Z
-   - Delivery Location: FRONT_DOOR_PORCH
-   - Destination Street: ${dispute.shipping_address.line1}
-   - Recipient Geolocation Fix: Lat 30.2672, Lon -97.7431 (Accuracy: 2.4m)
-   - Proof of Signature: M. REYNOLDS (Direct Signature)
-   - Delivery Checkpoints: 3 sequential barcode scans logged in carrier chain of custody.
-
-2. CARDHOLDER TELEMETRY & COMPELLING EVIDENCE (Visa CE 3.0 Standard)
-   - Checkout IP: 70.112.44.89 (Austin, Texas, ISP: AT&T Internet Services)
-   - IP Proximity to Delivery Destination: 4.2 km (confirms local resident access).
-   - Authentication Method: PAYPAL_ONE_TOUCH_BIOMETRIC (MFA Verified: true).
-   - Device Hardware Hash: fp_a9821f00b392a10 (Recognized returning browser profile).
-   - Terms & Conditions Agreement: Accepted electronically at 2026-10-31T18:22:10Z.
-
-3. LEGAL CONCLUSION & SELLER PROTECTION CLAIM
-The merchant has satisfied all requirements set forth in the PayPal Seller Protection Policy and industry Card-Not-Present dispute guidelines. The item was delivered in full prior to the dispute submission, and cardholder telemetry confirms legitimate authorization. We request that PayPal immediately close this dispute in favor of the merchant and release the held funds of USD ${dispute.dispute_amount.value}.
-
-Respectfully submitted,
-AegisPay Automated Defense Swarm on behalf of Merchant
-`.trim();
+  const carrierParts = (dispute.carrier_tracking_key || 'FEDEX-94821038').split('-');
+  const paypalPayload = {
+    dispute_id: dispute.dispute_id,
+    evidence_type:
+      dispute.dispute_reason === 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED'
+        ? 'PROOF_OF_DELIVERY'
+        : 'PROOF_OF_FULFILLMENT',
+    evidences: [
+      {
+        evidence_type: 'PROOF_OF_FULFILLMENT',
+        evidence_info: {
+          tracking_info: [
+            {
+              carrier_name: carrierParts[0] || 'FEDEX',
+              tracking_number: carrierParts.slice(1).join('-') || dispute.carrier_tracking_key,
+            },
+          ],
+        },
+        notes: rebuttalText,
+      },
+    ],
   };
 
-  const handleDefend = async () => {
-    await onSubmitToPayPal(dispute.dispute_id);
-    confetti({
-      particleCount: 90,
-      spread: 75,
-      origin: { y: 0.6 },
-      colors: ['#0070BA', '#00CFDE', '#10B981', '#6366F1'],
-    });
-  };
-
-  const handlePrint = () => {
-    window.print();
+  const handleCopy = async () => {
+    try {
+      const content =
+        activeTab === 'PAYPAL_PAYLOAD' ? JSON.stringify(paypalPayload, null, 2) : rebuttalText;
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore clipboard errors gracefully
+    }
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
+    <div
+      className="modal-overlay drawer-overlay"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="evidence-drawer-title"
+    >
+      <div className="modal-content">
         <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '10px',
-                background: 'rgba(0, 112, 186, 0.2)',
-                color: 'var(--paypal-cyan)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <ShieldCheck size={22} />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <h3 style={{ fontSize: '1.15rem' }}>Case Dossier: {dispute.dispute_id}</h3>
-                <span className={`status-pill ${isDefended ? 'defended' : 'ready'}`}>
-                  {isDefended ? 'Defended to PayPal' : 'Evidence Packet Compiled'}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <h2 id="evidence-drawer-title" className="num" style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--ink)' }}>
+                {dispute.dispute_id}
+              </h2>
+              <span className={`seller-protection-badge ${protectedEligible ? 'eligible' : 'ineligible'}`}>
+                {protectedEligible ? <ShieldCheck size={12} /> : <ShieldAlert size={12} />}
+                {protectedEligible ? 'Seller Protection' : 'Uninsured'}
+              </span>
+              {isDefended && (
+                <span className="status-pill defended">
+                  <CheckCircle2 size={12} />
+                  Sent to PayPal
                 </span>
-              </div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                {dispute.transaction_details.item_title} &bull; Claim: ${dispute.dispute_amount.value} USD
-              </p>
+              )}
             </div>
+            <p className="stat-meta" style={{ margin: '4px 0 0 0' }}>
+              {tx.item_title} · <span className="num">${amount} {dispute.dispute_amount?.currency_code || 'USD'}</span>
+            </p>
+          </div>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close packet drawer">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="tabs" role="tablist" aria-label="Evidence packet views">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'REBUTTAL'}
+              className={`tab ${activeTab === 'REBUTTAL' ? 'active' : ''}`}
+              onClick={() => setActiveTab('REBUTTAL')}
+            >
+              Rebuttal letter
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'TELEMETRY'}
+              className={`tab ${activeTab === 'TELEMETRY' ? 'active' : ''}`}
+              onClick={() => setActiveTab('TELEMETRY')}
+            >
+              Delivery &amp; account details
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'PAYPAL_PAYLOAD'}
+              className={`tab ${activeTab === 'PAYPAL_PAYLOAD' ? 'active' : ''}`}
+              onClick={() => setActiveTab('PAYPAL_PAYLOAD')}
+            >
+              PayPal API JSON
+            </button>
           </div>
 
-          <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              padding: '6px',
-            }}
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Modal Navigation Tabs */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '0.5rem',
-            padding: '0.75rem 1.75rem',
-            borderBottom: '1px solid var(--border-subtle)',
-            background: 'var(--bg-primary)',
-          }}
-        >
-          <button
-            className={`btn ${activeTab === 'REBUTTAL' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
-            onClick={() => setActiveTab('REBUTTAL')}
-          >
-            <FileText size={14} />
-            Formal Rebuttal Dossier
-          </button>
-          <button
-            className={`btn ${activeTab === 'TELEMETRY' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
-            onClick={() => setActiveTab('TELEMETRY')}
-          >
-            <MapPin size={14} />
-            Carrier &amp; IP Telemetry
-          </button>
-          <button
-            className={`btn ${activeTab === 'PAYPAL_PAYLOAD' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
-            onClick={() => setActiveTab('PAYPAL_PAYLOAD')}
-          >
-            <ShieldCheck size={14} />
-            PayPal API Payload
-          </button>
-        </div>
-
-        {/* Body Content */}
-        <div className="modal-body">
           {activeTab === 'REBUTTAL' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {/* Defense Tone Selector Chips */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  background: 'var(--bg-primary)',
-                  padding: '0.65rem 1rem',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border-subtle)',
-                }}
-              >
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  Rebuttal Strategy &amp; Tone:
-                </span>
-                <div style={{ display: 'flex', gap: '0.4rem' }}>
-                  <button
-                    className={`filter-chip ${selectedStrategy === 'LEGAL_AGGRESSIVE' ? 'active' : ''}`}
-                    onClick={() => setSelectedStrategy('LEGAL_AGGRESSIVE')}
-                    style={{ fontSize: '0.72rem', padding: '0.25rem 0.6rem' }}
-                  >
-                    <Scale size={12} style={{ marginRight: '4px' }} />
-                    Visa CE 3.0 Strict Legal
-                  </button>
-                  <button
-                    className={`filter-chip ${selectedStrategy === 'DIPLOMATIC_INQUIRY' ? 'active' : ''}`}
-                    onClick={() => setSelectedStrategy('DIPLOMATIC_INQUIRY')}
-                    style={{ fontSize: '0.72rem', padding: '0.25rem 0.6rem' }}
-                  >
-                    <HeartHandshake size={12} style={{ marginRight: '4px' }} />
-                    Diplomatic Customer
-                  </button>
-                  <button
-                    className={`filter-chip ${selectedStrategy === 'SYNDICATE_FRAUD_ESCALATION' ? 'active' : ''}`}
-                    onClick={() => setSelectedStrategy('SYNDICATE_FRAUD_ESCALATION')}
-                    style={{ fontSize: '0.72rem', padding: '0.25rem 0.6rem' }}
-                  >
-                    <ShieldAlert size={12} style={{ marginRight: '4px' }} />
-                    Syndicate Fraud Report
-                  </button>
-                </div>
-              </div>
-
-              {/* Status Banner */}
-              <div
-                style={{
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  borderRadius: '10px',
-                  padding: '0.75rem 1rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <Sparkles size={16} style={{ color: 'var(--emerald-400)' }} />
-                  <span style={{ fontSize: '0.8rem', color: '#E2E8F0' }}>
-                    Lex Agent evaluated <strong>PayPal Seller Protection Policy</strong>: 98% Win Probability
-                  </span>
-                </div>
-                <button
-                  className="btn btn-secondary"
-                  onClick={handlePrint}
-                  style={{ fontSize: '0.725rem', padding: '0.25rem 0.6rem' }}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" htmlFor="drawer-strategy">Response framing</label>
+                <select
+                  id="drawer-strategy"
+                  className="form-input"
+                  value={strategy}
+                  onChange={(e) => setStrategy(e.target.value)}
                 >
-                  <Printer size={13} />
-                  Print Dossier
-                </button>
+                  <option value="LEGAL_AGGRESSIVE">Compliance &amp; Seller Protection citation</option>
+                  <option value="DIPLOMATIC_INQUIRY">Diplomatic customer retention &amp; partial resolution</option>
+                  <option value="SYNDICATE_FRAUD_ESCALATION">Commercial forwarder &amp; cluster escalation</option>
+                </select>
               </div>
-
-              {/* Pre-Formatted Rebuttal Block */}
-              <div className="rebuttal-pre-block">
-                {getRebuttalContent()}
-              </div>
+              <pre className="rebuttal-pre-block document">{rebuttalText}</pre>
             </div>
           )}
 
           {activeTab === 'TELEMETRY' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="evidence-cards-grid">
-                <div className="evidence-box">
-                  <span className="evidence-box-title">Buyer Telemetry</span>
-                  <div style={{ fontSize: '0.8rem', color: '#E2E8F0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div><strong>Name:</strong> {dispute.buyer_info.name}</div>
-                    <div><strong>Email:</strong> {dispute.buyer_info.email}</div>
-                    <div><strong>PayPal ID:</strong> {dispute.buyer_info.paypal_account_id}</div>
-                    <div><strong>Address:</strong> {dispute.shipping_address.line1}, {dispute.shipping_address.city}</div>
-                  </div>
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="evidence-box">
+                <div className="evidence-box-title">Shipping &amp; fulfillment</div>
+                <dl className="kv">
+                  <dt>Tracking key</dt>
+                  <dd className="num">{dispute.carrier_tracking_key || '—'}</dd>
+                  <dt>Recipient</dt>
+                  <dd>{ship.recipient_name || buyer.name || '—'}</dd>
+                  <dt>Destination</dt>
+                  <dd>
+                    {ship.line1}, {ship.city}, {ship.state} {ship.postal_code}
+                  </dd>
+                  <dt>Order ID</dt>
+                  <dd className="num">{tx.order_id || '—'}</dd>
+                </dl>
+              </div>
 
-                <div className="evidence-box">
-                  <span className="evidence-box-title">Carrier Status</span>
-                  <div style={{ fontSize: '0.8rem', color: '#E2E8F0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div><strong>Tracking Ref:</strong> {dispute.carrier_tracking_key}</div>
-                    <div><strong>GPS Fix:</strong> Verified at Doorstep (±2.4m)</div>
-                    <div><strong>Signature:</strong> Signed on file</div>
-                    <div><strong>Address Match:</strong> 100% Identical to PayPal destination</div>
-                  </div>
-                </div>
+              <div className="evidence-box">
+                <div className="evidence-box-title">Buyer account profile</div>
+                <dl className="kv">
+                  <dt>Name</dt>
+                  <dd>{buyer.name || '—'}</dd>
+                  <dt>Email</dt>
+                  <dd className="num">{buyer.email || '—'}</dd>
+                  <dt>Account tenure</dt>
+                  <dd className="num">{buyer.account_age_days ? `${buyer.account_age_days} days` : '—'}</dd>
+                  <dt>Prior disputes</dt>
+                  <dd className="num">{buyer.prior_dispute_count ?? 0}</dd>
+                  <dt>Confidence score</dt>
+                  <dd className="num">{dispute.ai_state?.defense_confidence ?? 0}%</dd>
+                </dl>
               </div>
             </div>
           )}
 
           {activeTab === 'PAYPAL_PAYLOAD' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <p style={{ fontSize: '0.785rem', color: 'var(--text-secondary)' }}>
-                Endpoint: <code>POST /v1/customer/disputes/{dispute.dispute_id}/provide-evidence</code>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <p className="form-hint" style={{ margin: 0 }}>
+                Payload formatted for <code className="num">POST /v1/customer/disputes/{dispute.dispute_id}/provide-evidence</code>.
               </p>
-              <div className="rebuttal-pre-block">
-                {JSON.stringify(report?.paypal_payload_ready || {}, null, 2)}
-              </div>
+              <pre className="rebuttal-pre-block num">{JSON.stringify(paypalPayload, null, 2)}</pre>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose}>
-            Close
-          </button>
-          {!isDefended && (
-            <button
-              id="btn-modal-submit-evidence"
-              className="btn btn-emerald"
-              onClick={handleDefend}
-              disabled={isSubmitting}
-            >
-              <Send size={15} />
-              <span>{isSubmitting ? 'Transmitting to PayPal...' : 'Submit Evidence to PayPal API'}</span>
+        <div className="modal-footer" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={handleCopy}>
+              {copied ? <Check size={13} /> : <Copy size={13} />}
+              {copied ? 'Copied' : 'Copy'}
             </button>
-          )}
-          {isDefended && (
-            <span style={{ fontSize: '0.8rem', color: 'var(--emerald-400)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-              <CheckCircle2 size={16} /> Evidence Transmitted &amp; Under PayPal Review
-            </span>
-          )}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => window.print()}>
+              <Printer size={13} />
+              Print
+            </button>
+            {onReviewCase && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => onReviewCase(dispute.dispute_id)}
+              >
+                Open in Case review
+                <ArrowUpRight size={13} />
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-success"
+            disabled={isDefended || isSubmitting}
+            onClick={() => onSubmitToPayPal?.(dispute.dispute_id)}
+          >
+            <Send size={14} />
+            {isDefended ? 'Already submitted' : isSubmitting ? 'Submitting...' : 'Send evidence to PayPal'}
+          </button>
         </div>
       </div>
     </div>

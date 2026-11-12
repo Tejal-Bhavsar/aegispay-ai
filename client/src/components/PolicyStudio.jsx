@@ -1,284 +1,304 @@
-import React, { useState } from 'react';
-import { Sliders, ShieldCheck, Zap, DollarSign, Lock, AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ShieldCheck, RotateCcw, Save, CheckCircle2, SlidersHorizontal, Info } from 'lucide-react';
 
-export default function PolicyStudio() {
-  const [autoSubmitThreshold, setAutoSubmitThreshold] = useState(88);
-  const [goodwillCeiling, setGoodwillCeiling] = useState(45);
-  const [requireSignature750, setRequireSignature750] = useState(true);
-  const [quarantineReShippers, setQuarantineReShippers] = useState(true);
-  const [defaultStrategy, setDefaultStrategy] = useState('LEGAL_AGGRESSIVE');
+const DEFAULT_POLICY = {
+  autoSubmitThreshold: 88,
+  goodwillCeiling: 45,
+  requireSignature750: true,
+  quarantineReshippers: true,
+  defaultStrategy: 'LEGAL_AGGRESSIVE',
+};
+
+export default function PolicyStudio({ disputes = [] }) {
+  const [autoSubmitThreshold, setAutoSubmitThreshold] = useState(DEFAULT_POLICY.autoSubmitThreshold);
+  const [goodwillCeiling, setGoodwillCeiling] = useState(DEFAULT_POLICY.goodwillCeiling);
+  const [requireSignature750, setRequireSignature750] = useState(DEFAULT_POLICY.requireSignature750);
+  const [quarantineReshippers, setQuarantineReshippers] = useState(DEFAULT_POLICY.quarantineReshippers);
+  const [defaultStrategy, setDefaultStrategy] = useState(DEFAULT_POLICY.defaultStrategy);
   const [isSaved, setIsSaved] = useState(false);
 
   const handleSave = () => {
     setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2500);
+    setTimeout(() => setIsSaved(false), 3000);
   };
 
   const handleReset = () => {
-    setAutoSubmitThreshold(88);
-    setGoodwillCeiling(45);
-    setRequireSignature750(true);
-    setQuarantineReShippers(true);
-    setDefaultStrategy('LEGAL_AGGRESSIVE');
+    setAutoSubmitThreshold(DEFAULT_POLICY.autoSubmitThreshold);
+    setGoodwillCeiling(DEFAULT_POLICY.goodwillCeiling);
+    setRequireSignature750(DEFAULT_POLICY.requireSignature750);
+    setQuarantineReshippers(DEFAULT_POLICY.quarantineReshippers);
+    setDefaultStrategy(DEFAULT_POLICY.defaultStrategy);
+    setIsSaved(false);
   };
 
+  // Compute live queue impact directly from active disputes rather than static placeholders
+  const liveImpact = useMemo(() => {
+    const open = disputes.filter((d) => d.ai_state?.status !== 'DEFENDED_TO_PAYPAL');
+    const autoEligible = open.filter((d) => (d.ai_state?.defense_confidence || 0) >= autoSubmitThreshold);
+    const goodwillEligible = open.filter(
+      (d) =>
+        d.dispute_reason === 'MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED' ||
+        parseFloat(d.dispute_amount?.value || 0) <= goodwillCeiling
+    );
+    const highValueSignature = disputes.filter((d) => parseFloat(d.dispute_amount?.value || 0) >= 750);
+    const reshipperCases = disputes.filter(
+      (d) =>
+        (d.shipping_address?.city || '').toLowerCase() === 'wilmington' ||
+        d.ai_state?.recommended_action === 'ESCALATE_FRAUD_RING'
+    );
+    const protectedUsd = autoEligible.reduce((sum, d) => sum + parseFloat(d.dispute_amount?.value || 0), 0);
+
+    return {
+      openCount: open.length,
+      autoEligibleCount: autoEligible.length,
+      goodwillCount: goodwillEligible.length,
+      highValueCount: highValueSignature.length,
+      reshipperCount: reshipperCases.length,
+      protectedUsd,
+    };
+  }, [disputes, autoSubmitThreshold, goodwillCeiling]);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      {/* Header Banner */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div
         style={{
-          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(15, 23, 42, 0.8))',
-          border: '1px solid rgba(99, 102, 241, 0.3)',
-          borderRadius: '16px',
-          padding: '1.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '1rem',
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1.5fr) minmax(280px, 1fr)',
+          gap: '16px',
+          alignItems: 'start',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div
-            style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '12px',
-              background: 'rgba(99, 102, 241, 0.25)',
-              color: '#A5B4FC',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Sliders size={24} />
+        {/* Left: Threshold & Automation Rules */}
+        <div className="panel">
+          <div className="panel-head">
+            <div>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <SlidersHorizontal size={16} style={{ color: 'var(--accent)' }} />
+                Underwriting &amp; submission rules
+              </h3>
+              <p className="stat-meta" style={{ marginTop: '2px' }}>
+                Configure when AegisPay auto-submits evidence to PayPal or recommends a partial goodwill offer.
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={handleReset}>
+                <RotateCcw size={13} />
+                Reset
+              </button>
+              <button type="button" className="btn btn-primary btn-sm" onClick={handleSave}>
+                {isSaved ? <CheckCircle2 size={13} /> : <Save size={13} />}
+                {isSaved ? 'Saved' : 'Save rules'}
+              </button>
+            </div>
           </div>
-          <div>
-            <h3 style={{ fontSize: '1.2rem', color: '#FFFFFF' }}>Autonomous Dispute Policy Studio</h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              Configure underwriting rules, automatic PayPal API submission triggers, and customer goodwill thresholds.
-            </p>
-          </div>
-        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button className="btn btn-secondary" onClick={handleReset}>
-            <RotateCcw size={14} />
-            <span>Reset Defaults</span>
-          </button>
-          <button className="btn btn-emerald" onClick={handleSave}>
-            {isSaved ? <CheckCircle2 size={15} /> : <ShieldCheck size={15} />}
-            <span>{isSaved ? 'Policy Saved!' : 'Save Active Policy'}</span>
-          </button>
-        </div>
-      </div>
+          <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* Rule 1: Confidence Threshold */}
+            <div className="evidence-box" style={{ background: '#FFFFFF' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', marginBottom: '6px' }}>
+                <label htmlFor="auto-submit-threshold" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink)' }}>
+                  Auto-submit evidence threshold
+                </label>
+                <span className="num" style={{ fontSize: '15px', fontWeight: 700, color: 'var(--accent)' }}>
+                  {autoSubmitThreshold}%
+                </span>
+              </div>
+              <p className="form-hint" style={{ marginBottom: '12px' }}>
+                Disputes at or above this defense confidence score can be submitted to PayPal without manual review.
+              </p>
+              <input
+                id="auto-submit-threshold"
+                type="range"
+                min="60"
+                max="99"
+                value={autoSubmitThreshold}
+                onChange={(e) => setAutoSubmitThreshold(Number(e.target.value))}
+                style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                <span>60% (More automated)</span>
+                <span>99% (Strict review)</span>
+              </div>
+            </div>
 
-      {/* Main Grid: Controls on Left, Simulated Financial Impact on Right */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '1.5rem' }}>
-        {/* Policy Controls */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {/* Rule 1: Auto-Submission Confidence */}
-          <div className="evidence-box">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {/* Rule 2: Goodwill Ceiling */}
+            <div className="evidence-box" style={{ background: '#FFFFFF' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', marginBottom: '6px' }}>
+                <label htmlFor="goodwill-ceiling" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink)' }}>
+                  Goodwill settlement ceiling
+                </label>
+                <span className="num" style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ink)' }}>
+                  ${goodwillCeiling} USD
+                </span>
+              </div>
+              <p className="form-hint" style={{ marginBottom: '12px' }}>
+                Offer an automatic refund or partial credit up to this amount on SNAD or VIP claims to avoid chargeback fees.
+              </p>
+              <input
+                id="goodwill-ceiling"
+                type="range"
+                min="15"
+                max="150"
+                step="5"
+                value={goodwillCeiling}
+                onChange={(e) => setGoodwillCeiling(Number(e.target.value))}
+                style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                <span>$15 USD</span>
+                <span>$150 USD</span>
+              </div>
+            </div>
+
+            {/* Rule 3: High-Value Signature */}
+            <div
+              className="evidence-box"
+              style={{
+                background: '#FFFFFF',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '16px',
+              }}
+            >
               <div>
-                <strong style={{ fontSize: '0.9rem', color: '#FFFFFF' }}>
-                  Automatic PayPal API Submission Threshold
-                </strong>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  When AegisPay win probability equals or exceeds this threshold, auto-transmit evidence to PayPal without manual review.
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink)', marginBottom: '2px' }}>
+                  Require direct signature above $750
+                </div>
+                <p className="form-hint" style={{ margin: 0 }}>
+                  Enforces PayPal Seller Protection signature confirmation rule for orders of $750 USD or more.
                 </p>
               </div>
-              <span className="kpi-value" style={{ fontSize: '1.4rem', color: 'var(--emerald-400)' }}>
-                {autoSubmitThreshold}%
-              </span>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', flexShrink: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={requireSignature750}
+                  onChange={(e) => setRequireSignature750(e.target.checked)}
+                  style={{ width: 17, height: 17, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                />
+                <span className={`badge ${requireSignature750 ? 'success' : 'neutral'}`}>
+                  {requireSignature750 ? 'Enabled' : 'Off'}
+                </span>
+              </label>
             </div>
-            <input
-              type="range"
-              min="70"
-              max="98"
-              value={autoSubmitThreshold}
-              onChange={(e) => setAutoSubmitThreshold(Number(e.target.value))}
-              style={{ accentColor: 'var(--emerald-400)', marginTop: '0.5rem', width: '100%' }}
-            />
-          </div>
 
-          {/* Rule 2: Goodwill Settlement Ceiling */}
-          <div className="evidence-box">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {/* Rule 4: Freight Forwarder Quarantine */}
+            <div
+              className="evidence-box"
+              style={{
+                background: '#FFFFFF',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '16px',
+              }}
+            >
               <div>
-                <strong style={{ fontSize: '0.9rem', color: '#FFFFFF' }}>
-                  Pax Goodwill Pre-Dispute Micro-Refund Ceiling
-                </strong>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Maximum credit Pax Agent can autonomously offer during Inquiry phase to bypass $20-$50 bank chargeback fees.
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ink)', marginBottom: '2px' }}>
+                  Flag commercial freight-forwarder addresses
+                </div>
+                <p className="form-hint" style={{ margin: 0 }}>
+                  Automatically holds fulfillment and attaches re-shipper exclusion notes to any linked claim.
                 </p>
               </div>
-              <span className="kpi-value" style={{ fontSize: '1.4rem', color: 'var(--amber-400)' }}>
-                ${goodwillCeiling}
-              </span>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', flexShrink: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={quarantineReshippers}
+                  onChange={(e) => setQuarantineReshippers(e.target.checked)}
+                  style={{ width: 17, height: 17, accentColor: 'var(--accent)', cursor: 'pointer' }}
+                />
+                <span className={`badge ${quarantineReshippers ? 'success' : 'neutral'}`}>
+                  {quarantineReshippers ? 'Enabled' : 'Off'}
+                </span>
+              </label>
             </div>
-            <input
-              type="range"
-              min="10"
-              max="100"
-              step="5"
-              value={goodwillCeiling}
-              onChange={(e) => setGoodwillCeiling(Number(e.target.value))}
-              style={{ accentColor: 'var(--amber-400)', marginTop: '0.5rem', width: '100%' }}
-            />
-          </div>
 
-          {/* Rule 3: High-Value Signature Enforcement */}
-          <div className="evidence-box">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                <Lock size={18} style={{ color: 'var(--paypal-cyan)' }} />
-                <div>
-                  <strong style={{ fontSize: '0.875rem', color: '#FFFFFF' }}>
-                    Enforce PayPal $750+ Signature Confirmation Rule
-                  </strong>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    Mandates carrier direct signature verification on claims $\ge \$750$ to guarantee Seller Protection coverage.
-                  </p>
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={requireSignature750}
-                onChange={(e) => setRequireSignature750(e.target.checked)}
-                style={{ width: '18px', height: '18px', accentColor: 'var(--paypal-blue)' }}
-              />
-            </div>
-          </div>
-
-          {/* Rule 4: Quarantine Freight Forwarders */}
-          <div className="evidence-box">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                <AlertTriangle size={18} style={{ color: 'var(--rose-400)' }} />
-                <div>
-                  <strong style={{ fontSize: '0.875rem', color: '#FFFFFF' }}>
-                    Auto-Quarantine Freight-Forwarder Hotspots
-                  </strong>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    Automatically tag orders destined to commercial re-shippers (Delaware 19810, Doral FL 33166) for syndicate review.
-                  </p>
-                </div>
-              </div>
-              <input
-                type="checkbox"
-                checked={quarantineReShippers}
-                onChange={(e) => setQuarantineReShippers(e.target.checked)}
-                style={{ width: '18px', height: '18px', accentColor: 'var(--rose-500)' }}
-              />
-            </div>
-          </div>
-
-          {/* Rule 5: Default Defense Strategy */}
-          <div className="evidence-box">
-            <strong style={{ fontSize: '0.875rem', color: '#FFFFFF' }}>
-              Lex Agent Default Rebuttal Tone &amp; Standard
-            </strong>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-              Controls the legal citation model generated for bank issuing arbitration.
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
-              <button
-                type="button"
-                className={`filter-chip ${defaultStrategy === 'LEGAL_AGGRESSIVE' ? 'active' : ''}`}
-                onClick={() => setDefaultStrategy('LEGAL_AGGRESSIVE')}
-                style={{ textAlign: 'center', padding: '0.5rem' }}
+            {/* Rule 5: Default Response Tone */}
+            <div className="evidence-box" style={{ background: '#FFFFFF' }}>
+              <label htmlFor="default-strategy-select" style={{ display: 'block', fontSize: '14px', fontWeight: 600, color: 'var(--ink)', marginBottom: '4px' }}>
+                Default evidence packet style
+              </label>
+              <p className="form-hint" style={{ marginBottom: '10px' }}>
+                Controls how AegisPay frames carrier telemetry, network signals, and settlement terms in PayPal packets.
+              </p>
+              <select
+                id="default-strategy-select"
+                className="form-input"
+                value={defaultStrategy}
+                onChange={(e) => setDefaultStrategy(e.target.value)}
               >
-                Visa CE 3.0 &amp; Seller Protection
-              </button>
-              <button
-                type="button"
-                className={`filter-chip ${defaultStrategy === 'DIPLOMATIC_INQUIRY' ? 'active' : ''}`}
-                onClick={() => setDefaultStrategy('DIPLOMATIC_INQUIRY')}
-                style={{ textAlign: 'center', padding: '0.5rem' }}
-              >
-                Diplomatic Inquiry
-              </button>
-              <button
-                type="button"
-                className={`filter-chip ${defaultStrategy === 'SYNDICATE_FRAUD_ESCALATION' ? 'active' : ''}`}
-                onClick={() => setDefaultStrategy('SYNDICATE_FRAUD_ESCALATION')}
-                style={{ textAlign: 'center', padding: '0.5rem' }}
-              >
-                Syndicate Fraud Report
-              </button>
+                <option value="LEGAL_AGGRESSIVE">Direct compliance &amp; Seller Protection citation</option>
+                <option value="DIPLOMATIC_INQUIRY">Customer-retention settlement &amp; partial offer</option>
+                <option value="SYNDICATE_FRAUD_ESCALATION">Commercial forwarder &amp; network escalation</option>
+              </select>
             </div>
           </div>
         </div>
 
-        {/* Real-Time Policy Impact Simulator */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div
-            style={{
-              background: 'var(--glass-bg)',
-              border: '1px solid var(--glass-border)',
-              borderRadius: '16px',
-              padding: '1.5rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1.25rem',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Zap size={18} style={{ color: 'var(--paypal-cyan)' }} />
-              <h4 style={{ fontSize: '1rem' }}>Simulated ROI Impact</h4>
+        {/* Right: Live Queue Impact */}
+        <div className="panel">
+          <div className="panel-head">
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldCheck size={16} style={{ color: 'var(--success)' }} />
+              Live queue coverage
+            </h3>
+            <span className="badge info num">{disputes.length} cases</span>
+          </div>
+
+          <div className="panel-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="evidence-box">
+              <div className="stat-label" style={{ marginBottom: '4px' }}>
+                Open disputes matching auto-submit ({autoSubmitThreshold}%+)
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: '6px' }}>
+                <span className="stat-value num" style={{ fontSize: '24px' }}>
+                  {liveImpact.autoEligibleCount} / {liveImpact.openCount}
+                </span>
+                <span className="num" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--success)' }}>
+                  ${liveImpact.protectedUsd.toFixed(2)} USD
+                </span>
+              </div>
+              <p className="form-hint" style={{ marginTop: '6px', marginBottom: 0 }}>
+                Open claims that meet your confidence threshold right now.
+              </p>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              <div>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                  Projected Annual Capital Saved
-                </span>
-                <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--emerald-400)', fontFamily: 'var(--font-brand)' }}>
-                  $148,420 / yr
-                </div>
-              </div>
-
-              <div>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                  Casework Hours Eliminated
-                </span>
-                <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#FFFFFF' }}>
-                  1,840 Hours / yr
-                </div>
-              </div>
-
-              <div>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                  Zero-Touch Auto-Resolved Rate
-                </span>
-                <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--paypal-cyan)' }}>
-                  87.4%
-                </div>
-              </div>
-
-              <div>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                  Dispute Fee Penalties Avoided
-                </span>
-                <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--amber-400)' }}>
-                  $14,200.00
-                </div>
-              </div>
-            </div>
+            <dl className="kv" style={{ padding: '12px', borderRadius: '8px', border: '1px solid var(--border-subtle)', background: '#FFFFFF' }}>
+              <dt>Goodwill candidates (&le; ${goodwillCeiling} or SNAD)</dt>
+              <dd className="num">{liveImpact.goodwillCount} open</dd>
+              <dt>Orders &ge; $750 signature rule</dt>
+              <dd className="num">{requireSignature750 ? `${liveImpact.highValueCount} tracked` : 'Rule paused'}</dd>
+              <dt>Forwarder cluster flags</dt>
+              <dd className="num">{quarantineReshippers ? `${liveImpact.reshipperCount} flagged` : 'Rule paused'}</dd>
+              <dt>Active rebuttal preset</dt>
+              <dd>
+                {defaultStrategy === 'LEGAL_AGGRESSIVE'
+                  ? 'Compliance citation'
+                  : defaultStrategy === 'DIPLOMATIC_INQUIRY'
+                  ? 'Retention offer'
+                  : 'Forwarder escalation'}
+              </dd>
+            </dl>
 
             <div
               style={{
-                background: 'rgba(16, 185, 129, 0.08)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                borderRadius: '10px',
-                padding: '0.75rem',
-                fontSize: '0.75rem',
-                color: '#E2E8F0',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '8px',
+                padding: '12px',
+                borderRadius: '8px',
+                background: 'var(--surface-sunken)',
+                border: '1px solid var(--border-subtle)',
+                fontSize: '12.5px',
                 lineHeight: 1.5,
+                color: 'var(--text-secondary)',
               }}
             >
-              ✅ Current rule configuration complies 100% with PayPal Seller Protection guidelines and Visa Compelling Evidence 3.0 mandates.
+              <Info size={15} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '2px' }} />
+              <span>
+                Counts update immediately against the active queue loaded from PayPal Sandbox simulation so you can verify rule reach before saving.
+              </span>
             </div>
           </div>
         </div>

@@ -1,756 +1,584 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import {
-  Sparkles,
-  ShieldCheck,
+  Play,
   Send,
   Copy,
   Check,
   Printer,
-  Key,
-  Bot,
-  Scale,
-  Search,
-  HeartHandshake,
-  ShieldAlert,
-  Clock,
-  CheckCircle2,
+  KeyRound,
   AlertCircle,
-  FileText,
-  RotateCcw,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
-import confetti from 'canvas-confetti';
 
 const PRESET_SCENARIOS = {
-  SCENARIO_INR: {
-    id: 'PP-D-94821',
-    dispute_reason: 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED',
-    dispute_amount: '489.00',
-    currency: 'USD',
-    buyer_name: 'Marcus Reynolds',
-    buyer_email: 'm.reynolds742@gmail.com',
-    buyer_claim_notes: 'I checked my mailbox and front porch, but the package was never delivered. I want a full refund.',
-    order_id: 'ORD-94821',
-    item_title: 'Sony WH-1000XM5 Wireless Noise Canceling Headphones',
-    item_price: '489.00',
-    carrier: 'FedEx Ground',
-    tracking_number: '948210389102381',
-    delivery_status: 'DELIVERED',
-    delivery_timestamp: '2026-11-04T14:32:18Z',
-    signed_by: 'M. REYNOLDS (Direct Signature)',
-    delivery_location: 'Front Door / Covered Porch',
-    shipping_address: '742 Evergreen Terrace, Austin, TX 78701',
-    gps_coordinates: '30.2672 N, 97.7431 W (Accuracy: 2.4m)',
-    checkout_ip: '70.112.44.89',
-    ip_city: 'Austin, TX',
-    ip_distance_km: '4.2',
-    auth_method: 'PayPal One-Touch Biometric',
-    customer_lifetime_spend: '1420.00',
+  INR: {
+    label: 'Item not received ($489)',
+    data: {
+      dispute_id: 'PP-D-94821',
+      dispute_reason: 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED',
+      dispute_amount: '489.00',
+      currency: 'USD',
+      buyer_name: 'Marcus J. Reynolds',
+      buyer_email: 'm.reynolds84@gmail.com',
+      buyer_claim_notes: 'Buyer claims package never arrived despite carrier delivery confirmation.',
+      order_id: 'ORD-94821',
+      item_title: 'Sony WH-1000XM5 Wireless Noise Canceling Headphones',
+      item_price: '489.00',
+      shipping_address: '742 Evergreen Terrace, Austin, TX 78701',
+      carrier: 'FEDEX',
+      tracking_number: '948210389102381',
+      delivery_status: 'DELIVERED',
+      signed_by: 'M. REYNOLDS',
+      delivery_location: 'Front Porch / Covered Doorstep',
+      gps_coordinates: '30.2672 N, 97.7431 W (Accuracy: 2.4m)',
+      checkout_ip: '70.112.44.89',
+      ip_city: 'Austin, TX',
+      ip_distance_km: '4.2',
+      auth_method: 'PayPal One-Touch Biometric / 2FA',
+      customer_lifetime_spend: '489.00',
+    },
   },
-  SCENARIO_UNAUTHORIZED: {
-    id: 'PP-D-38192',
-    dispute_reason: 'UNAUTHORIZED',
-    dispute_amount: '1250.00',
-    currency: 'USD',
-    buyer_name: 'Claire Vance',
-    buyer_email: 'claire.vance@techcorp.io',
-    buyer_claim_notes: 'I did not recognize this transaction on my card statement. Someone must have stolen my card information.',
-    order_id: 'ORD-38192',
-    item_title: 'MacBook Pro 14" M3 Pro 18GB/512GB Space Black',
-    item_price: '1250.00',
-    carrier: 'UPS 2nd Day Air',
-    tracking_number: '1Z9999999999999999',
-    delivery_status: 'DELIVERED',
-    delivery_timestamp: '2026-10-29T11:15:40Z',
-    signed_by: 'C. VANCE (Recipient)',
-    delivery_location: 'Front Reception Desk',
-    shipping_address: '1200 Grand Avenue, Suite 400, Seattle, WA 98101',
-    gps_coordinates: '47.6062 N, 122.3321 W (Accuracy: 1.8m)',
-    checkout_ip: '198.54.133.9',
-    ip_city: 'Seattle, WA',
-    ip_distance_km: '1.1',
-    auth_method: 'PayPal 2FA SMS & Biometric Confirmed',
-    customer_lifetime_spend: '3100.00',
+  UNAUTHORIZED: {
+    label: 'Freight forwarder ($899)',
+    data: {
+      dispute_id: 'PP-D-88210',
+      dispute_reason: 'UNAUTHORIZED',
+      dispute_amount: '899.00',
+      currency: 'USD',
+      buyer_name: 'Alexei V. Petrenko',
+      buyer_email: 'user_x9401@tempmail-box.cc',
+      buyer_claim_notes: 'Cardholder alleges unauthorized transaction.',
+      order_id: 'ORD-88210',
+      item_title: 'NVIDIA GeForce RTX 4080 Super 16GB Gaming GPU',
+      item_price: '899.00',
+      shipping_address: '3500 Silverside Rd, Suite 105, Wilmington, DE 19810',
+      carrier: 'DHL',
+      tracking_number: '882109412201',
+      delivery_status: 'DELIVERED',
+      signed_by: 'RECEIVING CLERK D.105',
+      delivery_location: 'Commercial Freight Receiving Dock',
+      gps_coordinates: '39.8143 N, 75.5467 W (Accuracy: 1.8m)',
+      checkout_ip: '185.220.101.47',
+      ip_city: 'Wilmington / Proxy Exit',
+      ip_distance_km: '4180',
+      auth_method: 'Credit Card Checkout + Verified Address',
+      customer_lifetime_spend: '899.00',
+    },
   },
-  SCENARIO_SNAD: {
-    id: 'PP-D-19044',
-    dispute_reason: 'MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED',
-    dispute_amount: '340.00',
-    currency: 'USD',
-    buyer_name: 'David K. Miller',
-    buyer_email: 'dmiller.designs@yahoo.com',
-    buyer_claim_notes: 'The iPad chassis has a small hairline scratch on the back bezel that was not depicted in the listing photos. Requesting resolution.',
-    order_id: 'ORD-19044',
-    item_title: 'Refurbished Apple iPad Air (5th Gen) 64GB Wi-Fi - Starlight',
-    item_price: '340.00',
-    carrier: 'USPS Priority Mail',
-    tracking_number: '9400111899562537482910',
-    delivery_status: 'DELIVERED',
-    delivery_timestamp: '2026-11-01T15:10:02Z',
-    signed_by: 'Electronic Access Locker Keypad',
-    delivery_location: 'Parcel Locker #14',
-    shipping_address: '450 North Elm Street, Apt 3B, Chicago, IL 60611',
-    gps_coordinates: '41.8988 N, 87.6229 W (Accuracy: 3.1m)',
-    checkout_ip: '24.15.89.201',
-    ip_city: 'Chicago, IL',
-    ip_distance_km: '2.8',
-    auth_method: 'PayPal Password Verified',
-    customer_lifetime_spend: '4820.00',
+  SNAD: {
+    label: 'Not as described ($340)',
+    data: {
+      dispute_id: 'PP-D-44102',
+      dispute_reason: 'MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED',
+      dispute_amount: '340.00',
+      currency: 'USD',
+      buyer_name: 'David K. Miller',
+      buyer_email: 'dmiller.designs@yahoo.com',
+      buyer_claim_notes: 'Customer reports minor chassis scuff not depicted in condition photos.',
+      order_id: 'ORD-19044',
+      item_title: 'Refurbished Apple iPad Air (5th Gen) 64GB Wi-Fi',
+      item_price: '340.00',
+      shipping_address: '450 North Elm Street, Apt 3B, Chicago, IL 60611',
+      carrier: 'USPS',
+      tracking_number: '190448129011',
+      delivery_status: 'DELIVERED',
+      signed_by: 'D. MILLER',
+      delivery_location: 'Apartment Reception Desk',
+      gps_coordinates: '41.8947 N, 87.6242 W (Accuracy: 3.1m)',
+      checkout_ip: '73.241.18.92',
+      ip_city: 'Chicago, IL',
+      ip_distance_km: '1.8',
+      auth_method: 'PayPal Balance + Verified Account',
+      customer_lifetime_spend: '4820.00',
+    },
   },
 };
 
+function formatStepRole(action = '') {
+  const map = {
+    INTAKE_TRIAGE: 'Intake triage',
+    TRIAGE: 'Intake triage',
+    CARRIER_GPS_AUDIT: 'Carrier & GPS',
+    CARRIER_AUDIT: 'Carrier & GPS',
+    SELLER_PROTECTION_EVALUATION: 'Seller Protection',
+    LEGAL_DEFENSE: 'Seller Protection',
+    SETTLEMENT_ANALYSIS: 'Settlement check',
+    GOODWILL_CHECK: 'Settlement check',
+  };
+  if (map[action]) return map[action];
+  return action
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function mapDisputeToForm(dispute) {
+  const tx = dispute.transaction_details || {};
+  const buyer = dispute.buyer_info || {};
+  const ship = dispute.shipping_address || {};
+  const trackingRaw = dispute.carrier_tracking_key || '';
+  const carrier = trackingRaw.includes('-') ? trackingRaw.split('-')[0] : 'FEDEX';
+  const trackingNumber = trackingRaw.includes('-') ? trackingRaw.split('-').slice(1).join('-') : trackingRaw;
+
+  return {
+    dispute_id: dispute.dispute_id || 'PP-D-CUSTOM',
+    dispute_reason: dispute.dispute_reason || 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED',
+    dispute_amount: String(dispute.dispute_amount?.value || tx.item_price || '0.00'),
+    currency: dispute.dispute_amount?.currency_code || 'USD',
+    buyer_name: buyer.name || '',
+    buyer_email: buyer.email || '',
+    buyer_claim_notes:
+      tx.dispute_claim_notes || `Buyer opened ${dispute.dispute_reason?.replace(/_/g, ' ').toLowerCase() || 'dispute'} claim.`,
+    order_id: tx.order_id || 'ORD-00000',
+    item_title: tx.item_title || '',
+    item_price: String(tx.item_price || dispute.dispute_amount?.value || '0.00'),
+    shipping_address: `${ship.line1 || ''}, ${ship.city || ''}, ${ship.state || ''} ${ship.postal_code || ''}`.replace(/^,\s*/, ''),
+    carrier,
+    tracking_number: trackingNumber || '948210389102381',
+    delivery_status: 'DELIVERED',
+    signed_by: ship.recipient_name || buyer.name || 'Verified Recipient',
+    delivery_location: ship.city === 'Wilmington' ? 'Commercial Loading Dock' : 'Front Door / Porch',
+    gps_coordinates: ship.city === 'Wilmington' ? '39.8143 N, 75.5467 W' : '30.2672 N, 97.7431 W',
+    checkout_ip: ship.city === 'Wilmington' ? '185.220.101.47' : '70.112.44.89',
+    ip_city: ship.city ? `${ship.city}, ${ship.state || ''}`.trim() : 'Austin, TX',
+    ip_distance_km: ship.city === 'Wilmington' ? '4180' : '4.2',
+    auth_method: tx.payment_source || 'PayPal Checkout 2FA',
+    customer_lifetime_spend: buyer.lifetime_spend || '489.00',
+  };
+}
+
 export default function AIAnalyzer({ onDisputeResolved, activeDispute }) {
-  // Model Settings State
-  const [provider, setProvider] = useState('gemini'); // 'gemini' | 'openai'
+  const [formData, setFormData] = useState(PRESET_SCENARIOS.INR.data);
+  const [provider, setProvider] = useState('gemini');
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('aegispay_ai_key') || '');
-  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [showModelSettings, setShowModelSettings] = useState(false);
 
-  // Active Dispute Form State
-  const [activeScenario, setActiveScenario] = useState('SCENARIO_INR');
-  const [formData, setFormData] = useState({ ...PRESET_SCENARIOS.SCENARIO_INR });
-
-  // Execution & Output State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState(null);
-  const [isSubmittingToPayPal, setIsSubmittingToPayPal] = useState(false);
-  const [submissionSuccess, setSubmissionSuccess] = useState(false);
-  const [copiedLetter, setCopiedLetter] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [analysis, setAnalysis] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [submitBanner, setSubmitBanner] = useState(null);
+  const [copied, setCopied] = useState(false);
 
-  // Sync when activeDispute prop changes (e.g. user clicked Deploy Swarm on a grid row)
   useEffect(() => {
     if (activeDispute) {
-      setFormData({
-        id: activeDispute.dispute_id,
-        dispute_reason: activeDispute.dispute_reason,
-        dispute_amount: activeDispute.dispute_amount?.value || '0.00',
-        currency: activeDispute.dispute_amount?.currency_code || 'USD',
-        buyer_name: activeDispute.buyer_info?.name || 'Verified Customer',
-        buyer_email: activeDispute.buyer_info?.email || 'customer@paypal-user.com',
-        buyer_claim_notes: activeDispute.dispute_reason === 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED'
-          ? 'Customer claims package was not received at destination address.'
-          : activeDispute.dispute_reason === 'UNAUTHORIZED'
-          ? 'Cardholder filed bank chargeback claiming unauthorized card capture.'
-          : 'Customer claims item condition differs from merchant description.',
-        order_id: activeDispute.transaction_details?.order_id || 'ORD-SYNC',
-        item_title: activeDispute.transaction_details?.item_title || 'Disputed Merchant Order',
-        item_price: activeDispute.dispute_amount?.value || '0.00',
-        carrier: activeDispute.carrier_tracking_key?.includes('FEDEX') ? 'FedEx Ground' : 'UPS 2nd Day Air',
-        tracking_number: activeDispute.carrier_tracking_key || '948210389102381',
-        delivery_status: 'DELIVERED',
-        delivery_timestamp: '2026-11-04T14:32:18Z',
-        signed_by: activeDispute.buyer_info?.name ? `${activeDispute.buyer_info.name} (Direct Signature)` : 'M. REYNOLDS (Direct Signature)',
-        delivery_location: 'Front Door / Covered Vestibule',
-        shipping_address: activeDispute.shipping_address ? `${activeDispute.shipping_address.line1}, ${activeDispute.shipping_address.city}, ${activeDispute.shipping_address.state} ${activeDispute.shipping_address.postal_code}` : '742 Evergreen Terrace, Austin, TX 78701',
-        gps_coordinates: '30.2672 N, 97.7431 W (Accuracy: 2.4m)',
-        checkout_ip: '70.112.44.89',
-        ip_city: activeDispute.shipping_address?.city || 'Austin, TX',
-        ip_distance_km: '3.8',
-        auth_method: 'PayPal One-Touch 2FA Biometric',
-        customer_lifetime_spend: '2800.00',
-      });
-      setActiveScenario('CUSTOM');
-      setAnalysisResult(null);
-      setSubmissionSuccess(false);
+      setFormData(mapDisputeToForm(activeDispute));
+      setAnalysis(null);
+      setErrorMsg(null);
+      setSubmitBanner(null);
     }
   }, [activeDispute]);
 
-  const saveApiKey = (key) => {
-    setApiKey(key);
-    localStorage.setItem('aegispay_ai_key', key);
+  const updateField = (key, value) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSelectScenario = (key) => {
-    setActiveScenario(key);
-    setFormData({ ...PRESET_SCENARIOS[key] });
-    setAnalysisResult(null);
-    setSubmissionSuccess(false);
+  const applyPreset = (key) => {
+    setFormData(PRESET_SCENARIOS[key].data);
+    setAnalysis(null);
+    setErrorMsg(null);
+    setSubmitBanner(null);
   };
 
-  const handleFieldChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const handleApiKeyChange = (val) => {
+    setApiKey(val);
+    localStorage.setItem('aegispay_ai_key', val);
   };
 
-  // Run Real AI Analysis
-  const handleRunAIAnalysis = async () => {
+  const handleAnalyze = async (e) => {
+    e?.preventDefault();
     setIsAnalyzing(true);
-    setAnalysisResult(null);
-    setSubmissionSuccess(false);
+    setErrorMsg(null);
+    setSubmitBanner(null);
 
     try {
-      const response = await fetch('/api/ai/analyze', {
+      const res = await fetch('/api/ai/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           disputeCase: formData,
-          apiKey: apiKey.trim() || null,
+          apiKey: apiKey.trim() || undefined,
           provider,
         }),
       });
-
-      const data = await response.json();
-      if (data.success && data.result) {
-        setAnalysisResult(data.result);
-      } else {
-        alert(data.error || 'AI Analysis failed');
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Failed to run case evaluation.');
       }
+      setAnalysis(json.result);
     } catch (err) {
-      console.error('AI Analysis failed:', err);
-      alert('Error running AI analysis: ' + err.message);
+      setErrorMsg(err.message || 'Unable to contact analysis service.');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  // Submit Evidence to PayPal API
   const handleSubmitToPayPal = async () => {
-    setIsSubmittingToPayPal(true);
+    if (!analysis) return;
+    setIsSubmitting(true);
+    setErrorMsg(null);
+
     try {
-      const response = await fetch(`/api/disputes/${formData.id || 'PP-D-94821'}/submit`, {
+      const targetId = formData.dispute_id || 'PP-D-94821';
+      const res = await fetch(`/api/disputes/${encodeURIComponent(targetId)}/submit`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          notes: analysis.formal_rebuttal_letter,
+          evidence_payload: analysis.paypal_rest_payload,
+        }),
       });
-      const data = await response.json();
-      if (data.success) {
-        setSubmissionSuccess(true);
-        confetti({
-          particleCount: 85,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#0070BA', '#00CFDE', '#10B981', '#6366F1'],
-        });
-        if (onDisputeResolved) onDisputeResolved();
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || 'Failed to transmit evidence to PayPal.');
       }
+      setSubmitBanner(`Evidence packet sent to PayPal Sandbox for ${targetId}.`);
+      onDisputeResolved?.();
     } catch (err) {
-      console.error('PayPal submission failed:', err);
+      setErrorMsg(err.message || 'Failed to submit evidence.');
     } finally {
-      setIsSubmittingToPayPal(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleCopyLetter = () => {
-    if (analysisResult?.formal_rebuttal_letter) {
-      navigator.clipboard.writeText(analysisResult.formal_rebuttal_letter);
-      setCopiedLetter(true);
-      setTimeout(() => setCopiedLetter(false), 2000);
+  const handleCopyRebuttal = async () => {
+    if (!analysis?.formal_rebuttal_letter) return;
+    try {
+      await navigator.clipboard.writeText(analysis.formal_rebuttal_letter);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setErrorMsg('Clipboard access was denied by the browser.');
     }
   };
+
+  const verdictLabel =
+    analysis?.verdict === 'FIGHT_DISPUTE'
+      ? 'Recommended: Contest with Seller Protection packet'
+      : analysis?.verdict === 'ESCALATE_FRAUD_RING'
+      ? 'Recommended: Escalate linked cluster evidence'
+      : 'Recommended: Offer goodwill refund or return';
+
+  const verdictTone =
+    analysis?.verdict === 'SETTLE_GOODWILL' ? 'warning' : 'success';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      {/* 1. Real AI Model Configuration Bar */}
-      <div
-        style={{
-          background: 'var(--glass-bg)',
-          border: '1px solid var(--glass-border)',
-          borderRadius: '14px',
-          padding: '1rem 1.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div
-            style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #6366F1, #8B5CF6)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-            }}
-          >
-            <Bot size={20} />
-          </div>
+    <div className="case-layout">
+      {/* Left Column: Case Details Form */}
+      <form className="panel" onSubmit={handleAnalyze}>
+        <div className="panel-head" style={{ flexWrap: 'wrap', gap: '10px' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h3 style={{ fontSize: '1rem', color: '#FFFFFF' }}>AI Dispute Adjudication Engine</h3>
-              <span
-                className="status-pill defended"
-                style={{ fontSize: '0.675rem', padding: '1px 7px' }}
-              >
-                {apiKey ? 'Live LLM Active' : 'Autonomous Engine Active'}
-              </span>
-            </div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              Uses real Google Gemini 1.5 or OpenAI GPT-4o with multi-agent reasoning.
+            <h3>Dispute parameters</h3>
+            <p className="stat-meta" style={{ marginTop: '2px' }}>
+              Edit any field or load a sample claim before generating a defense packet.
             </p>
           </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            {Object.entries(PRESET_SCENARIOS).map(([key, preset]) => (
+              <button
+                key={key}
+                type="button"
+                className={`btn btn-sm ${formData.dispute_id === preset.data.dispute_id ? 'btn-secondary' : 'btn-ghost'}`}
+                onClick={() => applyPreset(key)}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Model Provider & API Key Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-          <select
-            value={provider}
-            onChange={(e) => setProvider(e.target.value)}
-            style={{
-              background: 'var(--bg-card)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '8px',
-              padding: '0.45rem 0.75rem',
-              fontSize: '0.785rem',
-              outline: 'none',
-            }}
-          >
-            <option value="gemini">Google Gemini 1.5 Flash</option>
-            <option value="openai">OpenAI GPT-4o</option>
-          </select>
-
-          <button
-            className="btn btn-secondary"
-            onClick={() => setShowKeyInput(!showKeyInput)}
-            style={{ fontSize: '0.785rem', padding: '0.45rem 0.85rem' }}
-          >
-            <Key size={14} style={{ color: apiKey ? 'var(--emerald-400)' : 'var(--amber-400)' }} />
-            <span>{apiKey ? 'API Key Saved' : 'Add API Key'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Expandable API Key Bar */}
-      {showKeyInput && (
-        <div
-          style={{
-            background: 'var(--bg-primary)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '10px',
-            padding: '1rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.5rem',
-          }}
-        >
-          <label style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-            Enter your {provider === 'gemini' ? 'Google Gemini' : 'OpenAI'} API Key:
-          </label>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
-              type="password"
-              className="form-input"
-              placeholder={provider === 'gemini' ? 'AIzaSy...' : 'sk-proj-...'}
-              value={apiKey}
-              onChange={(e) => saveApiKey(e.target.value)}
-              style={{ flex: 1 }}
-            />
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowKeyInput(false)}
-              style={{ padding: '0.45rem 1rem' }}
-            >
-              Save Key
-            </button>
-          </div>
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            💡 Your API key is stored safely in local browser memory and used exclusively to call the LLM for your dispute defense. If left blank, our built-in multi-agent engine will run.
-          </span>
-        </div>
-      )}
-
-      {/* 2. Main Two-Column Defense Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '460px 1fr', gap: '1.5rem', alignItems: 'start' }}>
-        {/* Left Column: Dispute & Fulfillment Evidence Form */}
-        <div
-          style={{
-            background: 'var(--glass-bg)',
-            border: '1px solid var(--glass-border)',
-            borderRadius: '16px',
-            padding: '1.25rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h4 style={{ fontSize: '0.95rem', color: '#FFFFFF', fontWeight: 700 }}>
-              1. Dispute &amp; Order Evidence
-            </h4>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Real Case Details</span>
-          </div>
-
-          {/* Quick Scenario Buttons */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-            <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-              Load Real-World Dispute Preset:
-            </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' }}>
-              <button
-                type="button"
-                className={`filter-chip ${activeScenario === 'SCENARIO_INR' ? 'active' : ''}`}
-                onClick={() => handleSelectScenario('SCENARIO_INR')}
-                style={{ padding: '0.4rem', fontSize: '0.72rem', textAlign: 'center' }}
-              >
-                Friendly Fraud (INR)
-              </button>
-              <button
-                type="button"
-                className={`filter-chip ${activeScenario === 'SCENARIO_UNAUTHORIZED' ? 'active' : ''}`}
-                onClick={() => handleSelectScenario('SCENARIO_UNAUTHORIZED')}
-                style={{ padding: '0.4rem', fontSize: '0.72rem', textAlign: 'center' }}
-              >
-                Stolen Card Claim
-              </button>
-              <button
-                type="button"
-                className={`filter-chip ${activeScenario === 'SCENARIO_SNAD' ? 'active' : ''}`}
-                onClick={() => handleSelectScenario('SCENARIO_SNAD')}
-                style={{ padding: '0.4rem', fontSize: '0.72rem', textAlign: 'center' }}
-              >
-                Condition (SNAD)
-              </button>
-            </div>
-          </div>
-
-          {/* Case Form Fields */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '520px', overflowY: 'auto', paddingRight: '4px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+        <div className="panel-body">
+          <div className="form-section">
+            <div className="form-section-title">Claim &amp; transaction</div>
+            <div className="field-grid">
               <div className="form-group">
-                <label className="form-label">Dispute ID</label>
+                <label className="form-label" htmlFor="case-id">Dispute ID</label>
                 <input
-                  type="text"
-                  className="form-input"
-                  value={formData.id}
-                  onChange={(e) => handleFieldChange('id', e.target.value)}
+                  id="case-id"
+                  className="form-input num"
+                  value={formData.dispute_id}
+                  onChange={(e) => updateField('dispute_id', e.target.value)}
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Claim Amount ($)</label>
+                <label className="form-label" htmlFor="case-amount">Amount (USD)</label>
                 <input
-                  type="text"
-                  className="form-input"
+                  id="case-amount"
+                  className="form-input num"
                   value={formData.dispute_amount}
-                  onChange={(e) => handleFieldChange('dispute_amount', e.target.value)}
+                  onChange={(e) => updateField('dispute_amount', e.target.value)}
+                />
+              </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label" htmlFor="case-reason">PayPal dispute reason</label>
+                <select
+                  id="case-reason"
+                  className="form-input"
+                  value={formData.dispute_reason}
+                  onChange={(e) => updateField('dispute_reason', e.target.value)}
+                >
+                  <option value="MERCHANDISE_OR_SERVICE_NOT_RECEIVED">Item not received (INR)</option>
+                  <option value="UNAUTHORIZED">Unauthorized payment</option>
+                  <option value="MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED">Significantly not as described (SNAD)</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label" htmlFor="case-item">Item description</label>
+                <input
+                  id="case-item"
+                  className="form-input"
+                  value={formData.item_title}
+                  onChange={(e) => updateField('item_title', e.target.value)}
                 />
               </div>
             </div>
+          </div>
 
-            <div className="form-group">
-              <label className="form-label">Dispute Reason</label>
-              <select
-                className="form-input"
-                value={formData.dispute_reason}
-                onChange={(e) => handleFieldChange('dispute_reason', e.target.value)}
-              >
-                <option value="MERCHANDISE_OR_SERVICE_NOT_RECEIVED">Item Not Received (INR - Friendly Fraud)</option>
-                <option value="UNAUTHORIZED">Unauthorized Charge / Card Stolen</option>
-                <option value="MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED">Significantly Not As Described (SNAD)</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Buyer Claim / Complaint Notes</label>
-              <textarea
-                className="form-input"
-                rows="2"
-                value={formData.buyer_claim_notes}
-                onChange={(e) => handleFieldChange('buyer_claim_notes', e.target.value)}
-                style={{ resize: 'vertical' }}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Purchased Item Title</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.item_title}
-                onChange={(e) => handleFieldChange('item_title', e.target.value)}
-              />
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+          <div className="form-section">
+            <div className="form-section-title">Fulfillment &amp; carrier proof</div>
+            <div className="field-grid">
               <div className="form-group">
-                <label className="form-label">Carrier</label>
-                <input
-                  type="text"
+                <label className="form-label" htmlFor="case-carrier">Carrier</label>
+                <select
+                  id="case-carrier"
                   className="form-input"
                   value={formData.carrier}
-                  onChange={(e) => handleFieldChange('carrier', e.target.value)}
-                />
+                  onChange={(e) => updateField('carrier', e.target.value)}
+                >
+                  <option value="FEDEX">FedEx</option>
+                  <option value="UPS">UPS</option>
+                  <option value="USPS">USPS</option>
+                  <option value="DHL">DHL Express</option>
+                </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Tracking Number</label>
+                <label className="form-label" htmlFor="case-tracking">Tracking number</label>
                 <input
-                  type="text"
-                  className="form-input"
+                  id="case-tracking"
+                  className="form-input num"
                   value={formData.tracking_number}
-                  onChange={(e) => handleFieldChange('tracking_number', e.target.value)}
+                  onChange={(e) => updateField('tracking_number', e.target.value)}
                 />
               </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
               <div className="form-group">
-                <label className="form-label">Delivery Status</label>
-                <input
-                  type="text"
+                <label className="form-label" htmlFor="case-status">Delivery status</label>
+                <select
+                  id="case-status"
                   className="form-input"
                   value={formData.delivery_status}
-                  onChange={(e) => handleFieldChange('delivery_status', e.target.value)}
-                />
+                  onChange={(e) => updateField('delivery_status', e.target.value)}
+                >
+                  <option value="DELIVERED">Delivered</option>
+                  <option value="IN_TRANSIT">In transit</option>
+                  <option value="EXCEPTION">Delivery exception</option>
+                </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Direct Signature</label>
+                <label className="form-label" htmlFor="case-signed">Signature on file</label>
                 <input
-                  type="text"
+                  id="case-signed"
                   className="form-input"
                   value={formData.signed_by}
-                  onChange={(e) => handleFieldChange('signed_by', e.target.value)}
+                  onChange={(e) => updateField('signed_by', e.target.value)}
+                  placeholder="None if unsigned"
+                />
+              </div>
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label" htmlFor="case-address">Verified shipping destination</label>
+                <input
+                  id="case-address"
+                  className="form-input"
+                  value={formData.shipping_address}
+                  onChange={(e) => updateField('shipping_address', e.target.value)}
                 />
               </div>
             </div>
-
-            <div className="form-group">
-              <label className="form-label">Verified Destination Address</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.shipping_address}
-                onChange={(e) => handleFieldChange('shipping_address', e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Carrier GPS Coordinates</label>
-              <input
-                type="text"
-                className="form-input"
-                value={formData.gps_coordinates}
-                onChange={(e) => handleFieldChange('gps_coordinates', e.target.value)}
-              />
-            </div>
           </div>
 
-          {/* Primary Action Button */}
-          <button
-            id="btn-run-ai-agent"
-            className="btn btn-primary"
-            onClick={handleRunAIAnalysis}
-            disabled={isAnalyzing}
-            style={{ padding: '0.75rem', justifyContent: 'center', fontSize: '0.9rem' }}
-          >
-            {isAnalyzing ? (
-              <>
-                <Clock size={16} className="spin" />
-                <span>Running AI Swarm (Sentinel &bull; Sherlock &bull; Lex &bull; Pax)...</span>
-              </>
-            ) : (
-              <>
-                <Sparkles size={16} />
-                <span>Analyze &amp; Defend with AI Swarm</span>
-              </>
+          <div className="form-section" style={{ marginBottom: 0 }}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setShowModelSettings((v) => !v)}
+              style={{ paddingLeft: 0, marginBottom: showModelSettings ? '10px' : 0 }}
+            >
+              <KeyRound size={14} />
+              <span>AI model provider (optional BYOK)</span>
+              {showModelSettings ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {showModelSettings && (
+              <div className="evidence-box" style={{ marginTop: '6px' }}>
+                <div className="field-grid">
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="ai-provider">Provider</label>
+                    <select
+                      id="ai-provider"
+                      className="form-input"
+                      value={provider}
+                      onChange={(e) => setProvider(e.target.value)}
+                    >
+                      <option value="gemini">Google Gemini 1.5 Flash</option>
+                      <option value="openai">OpenAI GPT-4o</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="ai-key">API key (optional)</label>
+                    <input
+                      id="ai-key"
+                      type="password"
+                      className="form-input num"
+                      value={apiKey}
+                      onChange={(e) => handleApiKeyChange(e.target.value)}
+                      placeholder="Leave blank for built-in rules engine"
+                    />
+                  </div>
+                </div>
+                <p className="form-hint" style={{ margin: '6px 0 0 0' }}>
+                  Stored locally in your browser. If omitted, AegisPay uses its deterministic Seller Protection engine.
+                </p>
+              </div>
             )}
-          </button>
+          </div>
+
+          <div style={{ marginTop: '18px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button type="submit" className="btn btn-primary" disabled={isAnalyzing}>
+              <Play size={14} />
+              {isAnalyzing ? 'Evaluating evidence...' : 'Run case review'}
+            </button>
+          </div>
+        </div>
+      </form>
+
+      {/* Right Column: Review Findings & Rebuttal Packet */}
+      <div className="panel">
+        <div className="panel-head">
+          <div>
+            <h3>Recommendation &amp; rebuttal packet</h3>
+            <p className="stat-meta" style={{ marginTop: '2px' }}>
+              Policy check, specialist findings, and ready-to-send PayPal Disputes API payload.
+            </p>
+          </div>
+          {analysis?.model_used && (
+            <span className="badge neutral">{analysis.model_used}</span>
+          )}
         </div>
 
-        {/* Right Column: Real AI Decision & Results Showcase */}
-        <div
-          style={{
-            background: 'var(--glass-bg)',
-            border: '1px solid var(--glass-border)',
-            borderRadius: '16px',
-            padding: '1.25rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1.25rem',
-            minHeight: '600px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h4 style={{ fontSize: '0.95rem', color: '#FFFFFF', fontWeight: 700 }}>
-              2. AI Defense Dossier &amp; Adjudication Verdict
-            </h4>
-            {analysisResult && (
-              <span style={{ fontSize: '0.72rem', color: 'var(--paypal-cyan)', fontFamily: 'var(--font-mono)' }}>
-                {analysisResult.model_used || 'AI Multi-Agent Swarm'}
-              </span>
-            )}
-          </div>
+        <div className="panel-body">
+          {errorMsg && (
+            <div className="error-box" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+              <AlertCircle size={15} />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
-          {!analysisResult && !isAnalyzing && (
+          {submitBanner && (
             <div
               style={{
                 display: 'flex',
-                flexDirection: 'column',
                 alignItems: 'center',
-                justifyContent: 'center',
-                padding: '4rem 2rem',
-                textAlign: 'center',
-                gap: '1rem',
-                color: 'var(--text-muted)',
+                gap: '8px',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                background: '#ECFDF5',
+                border: '1px solid #A7F3D0',
+                color: '#065F46',
+                fontSize: '13px',
+                fontWeight: 500,
+                marginBottom: '14px',
               }}
             >
-              <Bot size={48} strokeWidth={1.5} style={{ color: 'var(--paypal-blue)' }} />
+              <CheckCircle2 size={15} />
+              <span>{submitBanner}</span>
+            </div>
+          )}
+
+          {!analysis ? (
+            <div className="empty-state">
+              <p style={{ margin: '0 0 10px 0', color: 'var(--ink)', fontWeight: 500 }}>
+                Ready to evaluate {formData.dispute_id}
+              </p>
+              <p style={{ margin: 0, maxWidth: '420px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                Click <strong>Run case review</strong> to verify PayPal Seller Protection eligibility, check delivery signatures, and draft a response letter.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              {/* Verdict Block */}
+              <div className={`verdict ${verdictTone}`}>
+                <div>
+                  <span className={`badge ${analysis.seller_protection_eligible ? 'success' : 'warning'}`} style={{ marginBottom: '6px' }}>
+                    {analysis.seller_protection_eligible ? 'Seller Protection eligible' : 'Review settlement'}
+                  </span>
+                  <div className="verdict-title">{verdictLabel}</div>
+                  <p className="verdict-reason">{analysis.seller_protection_reason}</p>
+                </div>
+
+                <div className="verdict-figures">
+                  <div>
+                    <div className="figure-label">Win likelihood</div>
+                    <div className="figure-value num">{analysis.win_probability_pct}%</div>
+                  </div>
+                  <div>
+                    <div className="figure-label">Est. recovery</div>
+                    <div className="figure-value num">${analysis.estimated_savings_usd}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Specialist Checks */}
               <div>
-                <h5 style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '4px' }}>
-                  Awaiting Dispute Evaluation
-                </h5>
-                <p style={{ fontSize: '0.8rem', maxWidth: '420px', lineHeight: 1.5 }}>
-                  Select a real dispute case on the left and click <strong>"Analyze &amp; Defend with AI Swarm"</strong>. The AI model will audit delivery evidence, check PayPal Seller Protection eligibility, and draft the bank defense letter.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {isAnalyzing && (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '4rem 2rem',
-                gap: '1rem',
-              }}
-            >
-              <div className="pulse-dot online" style={{ width: '20px', height: '20px' }} />
-              <div style={{ textAlign: 'center' }}>
-                <h5 style={{ color: '#FFFFFF', fontSize: '1rem' }}>Multi-Agent Swarm Deliberating</h5>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                  Sentinel validating deadlines &bull; Sherlock cross-checking GPS fix &bull; Lex drafting Seller Protection rebuttal
-                </p>
-              </div>
-            </div>
-          )}
-
-          {analysisResult && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              {/* Verdict Summary Card */}
-              <div
-                style={{
-                  background: analysisResult.verdict === 'FIGHT_DISPUTE' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                  border: `1px solid ${analysisResult.verdict === 'FIGHT_DISPUTE' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
-                  borderRadius: '12px',
-                  padding: '1.25rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '1rem',
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span
-                      className={`status-pill ${analysisResult.verdict === 'FIGHT_DISPUTE' ? 'defended' : 'pending'}`}
-                      style={{ fontSize: '0.8rem', padding: '3px 10px' }}
-                    >
-                      {analysisResult.verdict === 'FIGHT_DISPUTE' ? 'RECOMMENDED: FIGHT DISPUTE' : 'RECOMMENDED: SETTLE GOODWILL'}
-                    </span>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      Win Prob: {analysisResult.win_probability_pct}%
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '0.775rem', color: '#E2E8F0', marginTop: '6px' }}>
-                    {analysisResult.seller_protection_reason}
-                  </p>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                    Protected Capital
-                  </div>
-                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--emerald-400)', fontFamily: 'var(--font-brand)' }}>
-                    ${analysisResult.estimated_savings_usd || formData.dispute_amount} USD
-                  </div>
-                </div>
-              </div>
-
-              {/* Agent Thought Stream */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  Multi-Agent Reasoning Trace:
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.65rem' }}>
-                  {analysisResult.agent_thought_stream?.map((step, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        background: '#070C18',
-                        padding: '0.75rem',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-subtle)',
-                        fontSize: '0.75rem',
-                      }}
-                    >
-                      <strong style={{ color: 'var(--paypal-cyan)' }}>{step.agent}:</strong>{' '}
-                      <span style={{ color: '#CBD5E1' }}>{step.thought}</span>
+                <div className="section-label">Verification steps</div>
+                <div className="findings">
+                  {(analysis.agent_thought_stream || []).map((item, idx) => (
+                    <div key={idx} className="finding">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                        <span className="finding-agent">{item.agent}</span>
+                        <span className="finding-role">{formatStepRole(item.action)}</span>
+                      </div>
+                      <p className="finding-text">
+                        {(item.thought || '').replace(/\.\.+/g, '.')}
+                      </p>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* The Generated Formal Rebuttal Letter */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                    AI-Drafted Bank Rebuttal Letter (Visa CE 3.0 &amp; PayPal Policy Compliant):
-                  </span>
-                  <div style={{ display: 'flex', gap: '0.4rem' }}>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={handleCopyLetter}
-                      style={{ fontSize: '0.725rem', padding: '0.25rem 0.6rem' }}
-                    >
-                      {copiedLetter ? <Check size={12} style={{ color: 'var(--emerald-400)' }} /> : <Copy size={12} />}
-                      <span>{copiedLetter ? 'Copied' : 'Copy'}</span>
+              {/* Draft Rebuttal Letter */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div className="section-label" style={{ margin: 0 }}>Formal PayPal rebuttal letter</div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={handleCopyRebuttal}>
+                      {copied ? <Check size={13} /> : <Copy size={13} />}
+                      {copied ? 'Copied' : 'Copy text'}
                     </button>
-                    <button
-                      className="btn btn-secondary"
-                      onClick={() => window.print()}
-                      style={{ fontSize: '0.725rem', padding: '0.25rem 0.6rem' }}
-                    >
-                      <Printer size={12} />
-                      <span>Print</span>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => window.print()}>
+                      <Printer size={13} />
+                      Print
                     </button>
                   </div>
                 </div>
 
-                <div className="rebuttal-pre-block">
-                  {analysisResult.formal_rebuttal_letter}
-                </div>
+                <pre className="rebuttal-pre-block document">{analysis.formal_rebuttal_letter}</pre>
               </div>
 
-              {/* PayPal REST API Submission Flow */}
-              <div
-                style={{
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '12px',
-                  padding: '1rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '1rem',
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#FFFFFF' }}>
-                    PayPal Disputes REST API Dispatch
-                  </div>
-                  <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                    POST /v1/customer/disputes/{formData.id}/provide-evidence
-                  </div>
+              {/* Submission Bar */}
+              <div className="submit-bar">
+                <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                  Target endpoint: <code className="endpoint num">POST /v1/customer/disputes/{formData.dispute_id}/provide-evidence</code>
                 </div>
-
-                {!submissionSuccess ? (
-                  <button
-                    id="btn-submit-paypal-evidence"
-                    className="btn btn-emerald"
-                    onClick={handleSubmitToPayPal}
-                    disabled={isSubmittingToPayPal}
-                  >
-                    <Send size={14} />
-                    <span>{isSubmittingToPayPal ? 'Transmitting...' : 'Submit Evidence to PayPal API'}</span>
-                  </button>
-                ) : (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--emerald-400)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                    <CheckCircle2 size={16} /> Transmitted &amp; Acknowledged by PayPal
-                  </span>
-                )}
+                <button
+                  type="button"
+                  className="btn btn-success"
+                  onClick={handleSubmitToPayPal}
+                  disabled={isSubmitting}
+                >
+                  <Send size={14} />
+                  {isSubmitting ? 'Submitting...' : 'Send evidence to PayPal'}
+                </button>
               </div>
             </div>
           )}

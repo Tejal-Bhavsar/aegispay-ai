@@ -1,87 +1,54 @@
-import React from 'react';
-import { DollarSign, ShieldCheck, Zap, Award, Clock } from 'lucide-react';
+import React, { useMemo } from 'react';
 
-export default function KpiGrid({ analytics }) {
-  const protectedRev = analytics ? parseFloat(analytics.protected_revenue_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00';
-  const totalVolume = analytics ? parseFloat(analytics.total_disputed_volume_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00';
+const HOUR = 60 * 60 * 1000;
+
+const money = (n) =>
+  '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+export default function KpiGrid({ disputes = [] }) {
+  const stats = useMemo(() => {
+    const now = Date.now();
+    const open = disputes.filter((d) => d.ai_state?.status !== 'DEFENDED_TO_PAYPAL');
+    const submitted = disputes.length - open.length;
+    const atRisk = open.reduce((sum, d) => sum + parseFloat(d.dispute_amount?.value || 0), 0);
+    const dueSoon = open.filter((d) => {
+      const t = new Date(d.response_deadline).getTime();
+      return !Number.isNaN(t) && t - now < 72 * HOUR;
+    }).length;
+    const protectedCount = disputes.filter((d) => d.seller_protection?.eligible).length;
+    const chargebacks = open.filter((d) => d.dispute_life_cycle_stage === 'CHARGEBACK').length;
+    return { open: open.length, submitted, atRisk, dueSoon, protectedCount, chargebacks, fees: open.length * 15 };
+  }, [disputes]);
 
   return (
-    <section className="kpi-grid">
-      {/* 1. Protected Revenue */}
-      <div className="kpi-card">
-        <div className="kpi-header">
-          <span className="kpi-title">Protected Revenue</span>
-          <div className="kpi-icon-wrapper" style={{ background: 'var(--emerald-bg)', color: 'var(--emerald-400)' }}>
-            <ShieldCheck size={18} />
-          </div>
-        </div>
-        <div className="kpi-value-row">
-          <span className="kpi-value" style={{ color: 'var(--emerald-400)' }}>${protectedRev}</span>
-          <span className="kpi-badge" style={{ background: 'var(--emerald-bg)', color: 'var(--emerald-400)' }}>
-            100% Retained
-          </span>
-        </div>
-        <div className="kpi-footer">
-          <span>Total In-Flight Disputes: <strong>${totalVolume}</strong></span>
-        </div>
+    <section className="stat-strip" aria-label="Queue summary">
+      <div className="stat">
+        <div className="stat-label">Open disputes</div>
+        <div className="stat-value">{stats.open}</div>
+        <div className="stat-note">{stats.chargebacks} at chargeback stage</div>
       </div>
-
-      {/* 2. Automation Win Rate */}
-      <div className="kpi-card">
-        <div className="kpi-header">
-          <span className="kpi-title">Dispute Win Rate</span>
-          <div className="kpi-icon-wrapper" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#A5B4FC' }}>
-            <Award size={18} />
-          </div>
-        </div>
-        <div className="kpi-value-row">
-          <span className="kpi-value">94.6%</span>
-          <span className="kpi-badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34D399' }}>
-            +66.6% vs Manual
-          </span>
-        </div>
-        <div className="kpi-footer">
-          <span>Visa/Mastercard/PayPal industry benchmark: 28%</span>
-        </div>
+      <div className="stat">
+        <div className="stat-label">Amount at risk</div>
+        <div className="stat-value">{money(stats.atRisk)}</div>
+        <div className="stat-note">plus {money(stats.fees)} in fees if lost</div>
       </div>
-
-      {/* 3. Defense Velocity */}
-      <div className="kpi-card">
-        <div className="kpi-header">
-          <span className="kpi-title">Defense Turnaround</span>
-          <div className="kpi-icon-wrapper" style={{ background: 'var(--cyan-bg)', color: 'var(--cyan-400)' }}>
-            <Zap size={18} />
-          </div>
-        </div>
-        <div className="kpi-value-row">
-          <span className="kpi-value" style={{ color: 'var(--cyan-400)' }}>34 sec</span>
-          <span className="kpi-badge" style={{ background: 'var(--cyan-bg)', color: 'var(--cyan-400)' }}>
-            Autonomous
-          </span>
-        </div>
-        <div className="kpi-footer">
-          <Clock size={12} />
-          <span>Manual caseworker SLA: 10 to 14 days</span>
-        </div>
+      <div className="stat">
+        <div className="stat-label">Due within 72 hours</div>
+        <div className={`stat-value ${stats.dueSoon > 0 ? 'danger' : ''}`}>{stats.dueSoon}</div>
+        <div className="stat-note">{stats.dueSoon > 0 ? 'Respond first' : 'Nothing urgent'}</div>
       </div>
-
-      {/* 4. PayPal Seller Protection */}
-      <div className="kpi-card">
-        <div className="kpi-header">
-          <span className="kpi-title">Seller Protection Backing</span>
-          <div className="kpi-icon-wrapper" style={{ background: 'rgba(0, 112, 186, 0.15)', color: 'var(--paypal-cyan)' }}>
-            <DollarSign size={18} />
-          </div>
+      <div className="stat">
+        <div className="stat-label">Seller Protection eligible</div>
+        <div className="stat-value">
+          {stats.protectedCount}
+          <span style={{ color: 'var(--ink-3)', fontSize: 15 }}> / {disputes.length}</span>
         </div>
-        <div className="kpi-value-row">
-          <span className="kpi-value">{analytics?.seller_protection_eligible_pct || 75}%</span>
-          <span className="kpi-badge" style={{ background: 'rgba(0, 207, 222, 0.15)', color: 'var(--paypal-cyan)' }}>
-            PayPal Backed
-          </span>
-        </div>
-        <div className="kpi-footer">
-          <span>Zero merchant liability on approved claims</span>
-        </div>
+        <div className="stat-note">Covered if evidence is sent in time</div>
+      </div>
+      <div className="stat">
+        <div className="stat-label">Evidence sent to PayPal</div>
+        <div className="stat-value">{stats.submitted}</div>
+        <div className="stat-note">Awaiting PayPal decision</div>
       </div>
     </section>
   );

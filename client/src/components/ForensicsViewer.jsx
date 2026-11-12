@@ -1,253 +1,358 @@
 import React, { useState } from 'react';
 import {
-  MapPin,
-  CheckCircle2,
-  FileCheck,
-  Smartphone,
-  Globe,
   Camera,
+  MapPin,
+  Globe,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
   ShieldCheck,
-  Calendar,
-  Truck,
+  ShieldAlert,
 } from 'lucide-react';
 
-export default function ForensicsViewer({ disputes }) {
-  const [selectedDisputeId, setSelectedDisputeId] = useState(disputes[0]?.dispute_id || '');
-  const dispute = disputes.find((d) => d.dispute_id === selectedDisputeId) || disputes[0];
+function parseCarrierLabel(trackingKey = '') {
+  if (trackingKey.startsWith('FEDEX')) return 'FedEx Ground Home Delivery';
+  if (trackingKey.startsWith('DHL')) return 'DHL Express Commercial';
+  if (trackingKey.startsWith('USPS')) return 'USPS Priority Mail';
+  if (trackingKey.startsWith('UPS')) return 'UPS Ground';
+  return 'Tracked Carrier Service';
+}
 
-  if (!dispute) {
-    return <div style={{ padding: '2rem', textAlign: 'center' }}>No disputes available.</div>;
+function formatUtc(isoString) {
+  if (!isoString) return 'Recorded prior to claim';
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return isoString;
+  return date.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+}
+
+function buildCaseTelemetry(dispute) {
+  const shipping = dispute?.shipping_address || {};
+  const buyer = dispute?.buyer_info || {};
+  const tx = dispute?.transaction_details || {};
+  const trackingKey = dispute?.carrier_tracking_key || 'TRK-000000';
+  const isReshipper = (shipping.city || '').toLowerCase() === 'wilmington';
+  const isSnad = dispute?.dispute_reason === 'MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED';
+  const purchaseTime = tx.purchase_date ? new Date(tx.purchase_date).getTime() : Date.now() - 6 * 86400000;
+  const transitIso = new Date(purchaseTime + 38 * 3600000).toISOString();
+  const deliveryIso = new Date(purchaseTime + 88 * 3600000).toISOString();
+
+  const cityCoords = isReshipper
+    ? '39.8143 N, 75.5467 W (+/- 1.8m)'
+    : (shipping.city || '').toLowerCase() === 'chicago'
+    ? '41.8947 N, 87.6242 W (+/- 3.1m)'
+    : '30.2672 N, 97.7431 W (+/- 2.4m)';
+
+  const recipientFull = shipping.recipient_name || buyer.name || 'Cardholder';
+  const nameParts = recipientFull.trim().split(/\s+/);
+  const signatureLabel =
+    nameParts.length >= 2
+      ? `${nameParts[0][0].toUpperCase()}. ${nameParts[nameParts.length - 1].toUpperCase()}`
+      : recipientFull.toUpperCase();
+
+  return {
+    carrierName: parseCarrierLabel(trackingKey),
+    trackingKey,
+    dropoffSpot: isReshipper ? 'Commercial Loading Dock · Suite 105' : 'Front Porch / Verified Doorstep',
+    gpsCoords: cityCoords,
+    scannerId: isReshipper ? 'DHL-Zebra-TC77-904' : 'Honeywell ScanPal EDA52 #4983',
+    addressLine: `${shipping.line1 || '742 Evergreen Terrace'}, ${shipping.city || 'Austin'}, ${shipping.state || 'TX'} ${shipping.postal_code || ''}`.trim(),
+    signatureLabel: isReshipper ? 'RECEIVING CLERK D.105 (Commercial Sign-Off)' : `${signatureLabel} (Direct Signature)`,
+    checkoutIp: isReshipper ? '185.220.101.47 (Exit Node)' : `74.112.44.89 (${shipping.city || 'Austin'}, ${shipping.state || 'TX'})`,
+    isp: isReshipper ? 'Known Anonymizing Proxy / Tor' : 'AT&T Residential Fiber',
+    proximity: isReshipper ? 'Commercial Forwarder Hub' : '4.2 km (Matches billing ZIP)',
+    proxyStatus: isReshipper ? 'Proxy / anonymizer detected' : 'Clean residential session',
+    proxySafe: !isReshipper,
+    deviceFingerprint: isReshipper ? 'fp_91ac03b22f01 (Shared across 4 accounts)' : 'fp_6c821f08c92a12 (Single account)',
+    ceEligible: !isReshipper && !isSnad,
+    timeline: [
+      {
+        tone: 'info',
+        time: formatUtc(tx.purchase_date),
+        event: `Order ${tx.order_id || dispute?.dispute_id} authorized (${tx.payment_source || 'PayPal Checkout'})`,
+      },
+      {
+        tone: 'info',
+        time: formatUtc(transitIso),
+        event: `Scanned in transit via ${parseCarrierLabel(trackingKey)} (${trackingKey})`,
+      },
+      {
+        tone: 'success',
+        time: formatUtc(deliveryIso),
+        event: isReshipper
+          ? 'Delivered and signed at commercial freight-forwarder dock'
+          : `Delivered and signed by ${recipientFull}`,
+      },
+      {
+        tone: 'danger',
+        time: formatUtc(dispute?.create_time),
+        event: `Buyer opened ${dispute?.dispute_reason?.replace(/_/g, ' ').toLowerCase() || 'dispute'} claim`,
+      },
+    ],
+  };
+}
+
+export default function ForensicsViewer({ disputes = [] }) {
+  const [selectedId, setSelectedId] = useState(disputes[0]?.dispute_id || '');
+
+  const selectedDispute = disputes.find((d) => d.dispute_id === selectedId) || disputes[0];
+  const telemetry = buildCaseTelemetry(selectedDispute);
+  const protectedEligible = Boolean(selectedDispute?.seller_protection?.eligible);
+
+  if (!selectedDispute) {
+    return (
+      <div className="panel">
+        <div className="panel-body">
+          <div className="empty-state">No disputes in queue to inspect delivery or checkout telemetry.</div>
+        </div>
+      </div>
+    );
   }
 
-  const carrier = dispute.carrier_tracking_key;
-  const isINR = dispute.dispute_reason === 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED';
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      {/* Top Selector Card */}
-      <div
-        style={{
-          background: 'var(--glass-bg)',
-          border: '1px solid var(--glass-border)',
-          borderRadius: '14px',
-          padding: '1rem 1.5rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
-        <div>
-          <h3 style={{ fontSize: '1.1rem' }}>Physical &amp; Digital Telemetry Forensics</h3>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            Examine unalterable GPS scans, carrier proof-of-delivery photos, and checkout network telemetry.
-          </p>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Case Selector Header Panel */}
+      <div className="panel">
+        <div className="panel-head" style={{ flexWrap: 'wrap', gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <span className="num" style={{ fontWeight: 700, fontSize: '14px', color: 'var(--ink)' }}>
+              {selectedDispute.dispute_id}
+            </span>
+            <span className={`seller-protection-badge ${protectedEligible ? 'eligible' : 'ineligible'}`}>
+              {protectedEligible ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />}
+              {protectedEligible ? 'Seller Protection eligible' : 'Not covered by Seller Protection'}
+            </span>
+            <span className="num" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              ${parseFloat(selectedDispute.dispute_amount?.value || 0).toFixed(2)} USD
+            </span>
+          </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Select Case:</label>
-          <select
-            value={selectedDisputeId}
-            onChange={(e) => setSelectedDisputeId(e.target.value)}
-            style={{
-              background: 'var(--bg-card)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '8px',
-              padding: '0.45rem 0.85rem',
-              fontSize: '0.8rem',
-              outline: 'none',
-            }}
-          >
-            {disputes.map((d) => (
-              <option key={d.dispute_id} value={d.dispute_id}>
-                {d.dispute_id} — {d.transaction_details.item_title.substring(0, 30)}...
-              </option>
-            ))}
-          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '320px', flex: '1 1 320px', maxWidth: '520px' }}>
+            <label htmlFor="forensics-case-select" className="form-label" style={{ margin: 0, whiteSpace: 'nowrap' }}>
+              Select dispute
+            </label>
+            <select
+              id="forensics-case-select"
+              className="form-input"
+              value={selectedDispute.dispute_id}
+              onChange={(e) => setSelectedId(e.target.value)}
+            >
+              {disputes.map((d) => (
+                <option key={d.dispute_id} value={d.dispute_id}>
+                  {d.dispute_id} — {d.transaction_details?.item_title || 'Order item'} (${d.dispute_amount?.value})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Grid of Evidence Cards */}
+      {/* 2x2 Evidence Grid */}
       <div className="evidence-cards-grid">
-        {/* 1. Carrier Proof of Delivery Photo & Signature */}
-        <div className="evidence-box">
-          <div className="evidence-box-title">
-            <Camera size={14} style={{ color: 'var(--paypal-cyan)' }} />
-            <span>Carrier Proof of Delivery &amp; Visual Verification</span>
+        {/* Card 1: Carrier Proof of Delivery & Product Image */}
+        <div className="panel">
+          <div className="panel-head">
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Camera size={16} style={{ color: 'var(--accent)' }} />
+              Carrier proof of delivery
+            </h3>
+            <span className="badge success">GPS verified</span>
           </div>
-          <div style={{ position: 'relative', borderRadius: '10px', overflow: 'hidden', height: '180px', background: '#0B1120' }}>
-            <img
-              src="https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=800&auto=format&fit=crop&q=80"
-              alt="Proof of Delivery on doorstep"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
+          <div className="panel-body">
             <div
               style={{
-                position: 'absolute',
-                bottom: '8px',
-                left: '8px',
-                right: '8px',
-                background: 'rgba(11, 17, 32, 0.85)',
-                backdropFilter: 'blur(8px)',
-                borderRadius: '6px',
-                padding: '6px 10px',
-                fontSize: '0.72rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                color: '#E2E8F0',
+                position: 'relative',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                border: '1px solid var(--border-subtle)',
+                marginBottom: '14px',
+                background: 'var(--surface-sunken)',
               }}
             >
-              <span>Timestamp: 2026-11-04 14:32:18 UTC</span>
-              <span style={{ color: 'var(--emerald-400)', fontWeight: 600 }}>GPS Verified</span>
+              <img
+                src={
+                  selectedDispute.transaction_details?.item_image ||
+                  'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=700&auto=format&fit=crop&q=80'
+                }
+                alt={selectedDispute.transaction_details?.item_title || 'Delivered parcel item'}
+                style={{ width: '100%', height: '164px', objectFit: 'cover', display: 'block' }}
+              />
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '8px 12px',
+                  background: '#FFFFFF',
+                  borderTop: '1px solid var(--border-subtle)',
+                  fontSize: '12px',
+                }}
+              >
+                <span className="num" style={{ color: 'var(--text-secondary)' }}>
+                  Scan time: {telemetry.timeline[2].time}
+                </span>
+                <span className="num" style={{ color: 'var(--ink)', fontWeight: 600 }}>
+                  {telemetry.trackingKey}
+                </span>
+              </div>
             </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.775rem', marginTop: '0.5rem' }}>
-            <span>
-              Signature on file: <strong>M. REYNOLDS (Direct Signature)</strong>
-            </span>
-            <span className="status-pill defended" style={{ padding: '2px 6px', fontSize: '0.675rem' }}>
-              Confirmed
-            </span>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                Signature on file:{' '}
+                <strong className="num" style={{ color: 'var(--ink)' }}>
+                  {telemetry.signatureLabel}
+                </strong>
+              </span>
+              <span className="badge success">Confirmed</span>
+            </div>
           </div>
         </div>
 
-        {/* 2. GPS Geolocation & Carrier Satellite Fix */}
-        <div className="evidence-box">
-          <div className="evidence-box-title">
-            <MapPin size={14} style={{ color: 'var(--emerald-400)' }} />
-            <span>Carrier Dropoff Satellite Coordinates</span>
+        {/* Card 2: Carrier Dropoff Coordinates */}
+        <div className="panel">
+          <div className="panel-head">
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <MapPin size={16} style={{ color: 'var(--success)' }} />
+              Carrier dropoff coordinates
+            </h3>
+            <span className="badge neutral num">{telemetry.carrierName.split(' ')[0]}</span>
           </div>
+          <div className="panel-body">
+            <div className="evidence-box" style={{ marginBottom: '12px' }}>
+              <dl className="kv">
+                <dt>Carrier service</dt>
+                <dd>{telemetry.carrierName}</dd>
+                <dt>Delivery location</dt>
+                <dd>{telemetry.dropoffSpot}</dd>
+                <dt>GPS geolocation</dt>
+                <dd className="num" style={{ color: 'var(--accent)', fontWeight: 600 }}>
+                  {telemetry.gpsCoords}
+                </dd>
+                <dt>Scanner ID</dt>
+                <dd className="num">{telemetry.scannerId}</dd>
+                <dt>Destination</dt>
+                <dd>{telemetry.addressLine}</dd>
+              </dl>
+            </div>
 
-          <div
-            style={{
-              background: '#070C18',
-              borderRadius: '10px',
-              border: '1px solid var(--border-subtle)',
-              padding: '1rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.65rem',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Carrier:</span>
-              <strong style={{ color: 'var(--text-primary)' }}>FedEx Ground Home Delivery</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: 'var(--success)', fontWeight: 500 }}>
+              <CheckCircle2 size={14} />
+              <span>Matches PayPal shipping address on original transaction</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Delivery Location:</span>
-              <span>Front Door / Covered Porch</span>
+          </div>
+        </div>
+
+        {/* Card 3: Cardholder Checkout Network Telemetry */}
+        <div className="panel">
+          <div className="panel-head">
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Globe size={16} style={{ color: 'var(--accent)' }} />
+              Checkout network telemetry
+            </h3>
+            <span className={`badge ${telemetry.proxySafe ? 'success' : 'danger'}`}>
+              {telemetry.proxySafe ? 'Consistent IP' : 'Proxy anomaly'}
+            </span>
+          </div>
+          <div className="panel-body">
+            <div className="evidence-box" style={{ marginBottom: '12px' }}>
+              <dl className="kv">
+                <dt>Checkout IP</dt>
+                <dd className="num">{telemetry.checkoutIp}</dd>
+                <dt>ISP / ASN</dt>
+                <dd>{telemetry.isp}</dd>
+                <dt>Delivery proximity</dt>
+                <dd style={{ color: telemetry.proxySafe ? 'var(--success)' : 'var(--warning)', fontWeight: 600 }}>
+                  {telemetry.proximity}
+                </dd>
+                <dt>Proxy / VPN check</dt>
+                <dd style={{ color: telemetry.proxySafe ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
+                  {telemetry.proxyStatus}
+                </dd>
+                <dt>Device ID</dt>
+                <dd className="num">{telemetry.deviceFingerprint}</dd>
+              </dl>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>GPS Geolocation:</span>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--paypal-cyan)' }}>
-                30.2672° N, 97.7431° W (±2.4m)
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12.5px',
+                color: telemetry.ceEligible ? 'var(--text-secondary)' : 'var(--warning)',
+              }}
+            >
+              {telemetry.ceEligible ? <CheckCircle2 size={14} style={{ color: 'var(--success)' }} /> : <AlertTriangle size={14} />}
+              <span>
+                {telemetry.ceEligible
+                  ? 'Supports Visa Compelling Evidence 3.0 & device continuity proof.'
+                  : 'Re-shipper or item-condition dispute: rely on signed handoff or partial offer.'}
               </span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Handheld Scanner ID:</span>
-              <span style={{ fontFamily: 'var(--font-mono)' }}>Honeywell ScanPal EDA52 #4901</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Recipient Address:</span>
-              <span style={{ textAlign: 'right' }}>
-                {dispute.shipping_address.line1}, {dispute.shipping_address.city}, {dispute.shipping_address.state}
-              </span>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--emerald-400)', fontSize: '0.75rem', marginTop: '0.4rem' }}>
-            <CheckCircle2 size={14} />
-            <span>Matches PayPal Order Destination Address 100%</span>
           </div>
         </div>
 
-        {/* 3. Checkout IP & Network Telemetry */}
-        <div className="evidence-box">
-          <div className="evidence-box-title">
-            <Globe size={14} style={{ color: 'var(--accent-indigo)' }} />
-            <span>Cardholder Checkout Network Intelligence</span>
+        {/* Card 4: Chain of Custody Timeline */}
+        <div className="panel">
+          <div className="panel-head">
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Clock size={16} style={{ color: 'var(--warning)' }} />
+              Chain of custody timeline
+            </h3>
+            <span className="badge info">4 checkpoints</span>
           </div>
-
-          <div
-            style={{
-              background: '#070C18',
-              borderRadius: '10px',
-              border: '1px solid var(--border-subtle)',
-              padding: '1rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.65rem',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Checkout IP:</span>
-              <span style={{ fontFamily: 'var(--font-mono)' }}>70.112.44.89 (Austin TX)</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>ISP Provider:</span>
-              <span>AT&amp;T Internet Services</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Proximity to Delivery Address:</span>
-              <strong style={{ color: 'var(--emerald-400)' }}>4.2 km (Same Household Area)</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Proxy / VPN Status:</span>
-              <span style={{ color: 'var(--emerald-400)' }}>Clean (Zero VPN/Tor detected)</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Device Fingerprint:</span>
-              <span style={{ fontFamily: 'var(--font-mono)' }}>fp_a9821f00b392a10 (MacBook Pro)</span>
-            </div>
-          </div>
-
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-            Provides conclusive Visa Compelling Evidence 3.0 (CE 3.0) proof of authorized resident purchase.
-          </div>
-        </div>
-
-        {/* 4. Temporal Sequence Audit */}
-        <div className="evidence-box">
-          <div className="evidence-box-title">
-            <Calendar size={14} style={{ color: 'var(--amber-400)' }} />
-            <span>Temporal Chain of Custody Timeline</span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.5rem 0' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--paypal-blue)', marginTop: '5px' }} />
-              <div style={{ fontSize: '0.775rem' }}>
-                <strong>2026-10-31 18:22 UTC:</strong> Order Placed &amp; PayPal Biometric Auth Confirmed.
-              </div>
+          <div className="panel-body">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
+              {telemetry.timeline.map((step, idx) => {
+                const dotColor =
+                  step.tone === 'success'
+                    ? 'var(--success)'
+                    : step.tone === 'danger'
+                    ? 'var(--danger)'
+                    : 'var(--accent)';
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '10px 1fr',
+                      gap: '10px',
+                      alignItems: 'baseline',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        background: dotColor,
+                        display: 'inline-block',
+                        transform: 'translateY(-1px)',
+                      }}
+                    />
+                    <div style={{ fontSize: '13px', lineHeight: 1.45, color: 'var(--ink)' }}>
+                      <strong className="num" style={{ fontSize: '12px', marginRight: '6px' }}>
+                        {step.time}
+                      </strong>
+                      <span style={{ color: 'var(--text-secondary)' }}>{step.event}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--paypal-cyan)', marginTop: '5px' }} />
-              <div style={{ fontSize: '0.775rem' }}>
-                <strong>2026-11-02 08:15 UTC:</strong> In Transit via FedEx Dallas TX Processing Hub.
-              </div>
+            <div
+              style={{
+                paddingTop: '12px',
+                borderTop: '1px solid var(--border-subtle)',
+                fontSize: '12.5px',
+                color: protectedEligible ? 'var(--success)' : 'var(--text-secondary)',
+                fontWeight: 500,
+              }}
+            >
+              {selectedDispute.seller_protection?.protection_reason ||
+                'Carrier delivery scan predates claim submission.'}
             </div>
-
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--emerald-400)', marginTop: '5px' }} />
-              <div style={{ fontSize: '0.775rem' }}>
-                <strong>2026-11-04 14:32 UTC:</strong> Package Delivered &amp; Signed by Marcus Reynolds.
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--rose-400)', marginTop: '5px' }} />
-              <div style={{ fontSize: '0.775rem' }}>
-                <strong>2026-11-06 09:14 UTC:</strong> Customer filed dispute claiming "Item Not Received" (2 days post-delivery).
-              </div>
-            </div>
-          </div>
-
-          <div className="seller-protection-badge eligible" style={{ marginTop: '0.5rem' }}>
-            <ShieldCheck size={14} />
-            <span>Temporal audit refutes claim: Buyer possessed item 48 hours prior to dispute</span>
           </div>
         </div>
       </div>
