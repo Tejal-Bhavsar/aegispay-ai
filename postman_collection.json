@@ -1,0 +1,264 @@
+{
+  "info": {
+    "_postman_id": "aegispay-ai-collection-v1",
+    "name": "AegisPay AI - Multi-Agent Dispute Defense Platform",
+    "description": "Postman Collection for AegisPay AI. Integrates PayPal Customer Disputes API with an autonomous multi-agent defense swarm.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5001",
+      "type": "string"
+    },
+    {
+      "key": "sampleDisputeId",
+      "value": "PP-D-94821",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Disputes",
+      "item": [
+        {
+          "name": "1. List All Disputes (AG Grid Feed)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/disputes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "disputes"]
+            },
+            "description": "Fetches all disputes with Seller Protection and AI risk metadata for the AG Grid table."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Response has disputes array\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.disputes).to.be.an('array');",
+                  "    pm.expect(jsonData.total).to.be.above(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Get Dispute Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/disputes/{{sampleDisputeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "disputes", "{{sampleDisputeId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Verify Dispute ID matches\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.dispute_id).to.eql(pm.collectionVariables.get(\"sampleDisputeId\"));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Simulate Inbound Dispute Attack",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/disputes/simulate-attack",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "disputes", "simulate-attack"]
+            },
+            "description": "Simulates a fresh PayPal dispute webhook event (Item Not Received or Unauthorized card)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Attack simulated successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.dispute.dispute_id).to.be.a('string');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Swarm Operations",
+      "item": [
+        {
+          "name": "1. Deploy Swarm Investigation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/disputes/{{sampleDisputeId}}/investigate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "disputes", "{{sampleDisputeId}}", "investigate"]
+            },
+            "description": "Triggers Sentinel, Sherlock, Oracle, Lex, and Pax to collaborate and compile the bank rebuttal dossier."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Investigation complete\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.report.win_probability_pct).to.be.above(50);",
+                  "    pm.expect(json.report.paypal_payload_ready).to.have.property('evidence_type');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Submit Evidence to PayPal API",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/disputes/{{sampleDisputeId}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "disputes", "{{sampleDisputeId}}", "submit"]
+            },
+            "description": "Dispatches the evidence packet to PayPal Disputes REST API endpoint."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Evidence submitted successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.be.true;",
+                  "    pm.expect(json.dispute.status).to.eql(\"UNDER_REVIEW\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Batch Auto-Defend All Disputes",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/disputes/batch-defend",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "disputes", "batch-defend"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Intelligence & Analytics",
+      "item": [
+        {
+          "name": "1. Platform Analytics & KPIs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/analytics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "analytics"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Analytics retrieved\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.automation_win_rate_pct).to.be.above(80);",
+                  "    pm.expect(json.avg_resolution_seconds).to.be.below(60);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Oracle Syndicate Clusters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/syndicates",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "syndicates"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "PayPal Platform",
+      "item": [
+        {
+          "name": "1. Verify Connection Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/paypal/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "paypal", "status"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

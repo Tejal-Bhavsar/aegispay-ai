@@ -1,0 +1,1290 @@
+/* ==========================================================================
+   AegisPay — Dispute & Friendly Fraud Adjudication Workbench
+   Direction: Chain of Custody & Forensic Exhibit Workbench
+   Palette: Deep Institutional Navy (#0F1D35), Warm Archival Stone (#F4F3EF),
+            Crisp Paper (#FFFFFF), Structural Hairlines (#D8D6CE),
+            Manila Exhibit Tags (#FBF6E9 / #DFC99B / #8A5A00),
+            PayPal Institutional Blue (#005EA6), Statutory Crimson (#B3261E),
+            Seller Protection Forest Green (#166534).
+   ========================================================================== */
+
+:root {
+  /* Institutional Navy Command Rail */
+  --rail-bg: #0F1D35;
+  --rail-bg-elevated: #162847;
+  --rail-bg-hover: #1C3258;
+  --rail-border: rgba(255, 255, 255, 0.1);
+  --rail-text: #F8FAFC;
+  --rail-text-secondary: #CBD5E1;
+  --rail-text-muted: #8E9BAE;
+
+  /* Archival Stone & Crisp Paper Workspace */
+  --canvas-bg: #F4F3EF;
+  --paper-bg: #FFFFFF;
+  --paper-subtle: #FAF9F5;
+  --paper-recessed: #EFECE6;
+  --hairline: #D8D6CE;
+  --hairline-subtle: #E6E4DD;
+  --hairline-strong: #B8B5AA;
+
+  /* Typography Ink Hierarchy */
+  --ink-primary: #111827;
+  --ink-secondary: #374151;
+  --ink-muted: #6B7280;
+  --ink-faint: #9CA3AF;
+
+  /* Forensic Manila Exhibit Tags (Reserved strictly for verified evidentiary artifacts) */
+  --manila-bg: #FBF6E9;
+  --manila-border: #DFC99B;
+  --manila-stamp: #8A5A00;
+
+  /* Institutional Semantic Tokens */
+  --paypal-blue: #005EA6;
+  --paypal-blue-hover: #004B87;
+  --paypal-blue-tint: #EBF4FF;
+  --paypal-blue-border: #B8D8F8;
+
+  --crimson: #B3261E;
+  --crimson-hover: #8C1D18;
+  --crimson-tint: #FDF2F2;
+  --crimson-border: #F2B8B5;
+
+  --forest: #166534;
+  --forest-tint: #F0FDF4;
+  --forest-border: #BBF7D0;
+
+  --amber: #92400E;
+  --amber-tint: #FFFBEB;
+  --amber-border: #FDE68A;
+
+  /* Typography Families */
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Structural Elevation (Crisp, non-glowing) */
+  --shadow-card: 0 1px 2px rgba(15, 29, 53, 0.05);
+  --shadow-drawer: -4px 0 16px rgba(15, 29, 53, 0.07);
+  --shadow-modal: 0 20px 40px rgba(15, 29, 53, 0.22);
+
+  /* Transitions */
+  --transition-fast: 120ms ease;
+  --transition-normal: 180ms ease;
+}
+
+/* Base Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background-color: var(--canvas-bg);
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Tabular Numerals Everywhere Relevant */
+.mono,
+code,
+pre,
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  color: var(--ink-primary);
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--canvas-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: #C4C1B8;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9E9B90;
+}
+
+/* ==========================================================================
+   1. WORKBENCH SHELL & FIXED 248PX INSTITUTIONAL NAVY COMMAND RAIL
+   ========================================================================== */
+
+.workbench-shell {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--canvas-bg);
+}
+
+.command-rail {
+  width: 248px;
+  min-width: 248px;
+  background-color: var(--rail-bg);
+  color: var(--rail-text);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 40;
+  border-right: 1px solid #091221;
+  user-select: none;
+}
+
+.rail-top {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Brand Header in Command Rail */
+.rail-brand {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--rail-border);
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  cursor: pointer;
+}
+
+.rail-brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: var(--paypal-blue);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  flex-shrink: 0;
+}
+
+.rail-brand-text h1 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.rail-brand-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rail-text-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+/* Workspace Section Label */
+.rail-section-label {
+  padding: 16px 18px 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--rail-text-muted);
+}
+
+/* Navigation Items */
+.rail-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 0 10px;
+  gap: 2px;
+}
+
+.rail-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--rail-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  text-align: left;
+}
+
+.rail-nav-btn-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.rail-nav-btn:hover {
+  background-color: var(--rail-bg-elevated);
+  color: #FFFFFF;
+}
+
+.rail-nav-btn.active {
+  background-color: var(--rail-bg-hover);
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.14);
+  font-weight: 600;
+}
+
+.rail-nav-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--rail-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.rail-nav-btn.active .rail-nav-badge {
+  background-color: var(--paypal-blue);
+  color: #FFFFFF;
+}
+
+/* 5-Agent Pipeline Roster inside Command Rail */
+.rail-agents-box {
+  margin: 8px 12px 0;
+  padding: 10px 12px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--rail-border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.rail-agent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+}
+
+.rail-agent-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--rail-text-secondary);
+  font-weight: 500;
+}
+
+.rail-agent-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #22C55E;
+}
+
+.rail-agent-role {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--rail-text-muted);
+}
+
+/* Rail Footer: Sandbox Status & Operations Utilities */
+.rail-footer {
+  padding: 12px;
+  border-top: 1px solid var(--rail-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: rgba(0, 0, 0, 0.18);
+}
+
+.rail-env-card {
+  padding: 9px 10px;
+  border-radius: 5px;
+  background-color: var(--rail-bg-elevated);
+  border: 1px solid var(--rail-border);
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.rail-env-card:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.rail-env-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #FFFFFF;
+}
+
+.rail-env-sub {
+  font-size: 11px;
+  color: var(--rail-text-muted);
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.status-dot.live {
+  background-color: #22C55E;
+}
+.status-dot.sim {
+  background-color: #F59E0B;
+}
+
+.rail-utility-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.rail-util-btn {
+  padding: 6px 8px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--rail-border);
+  color: var(--rail-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.rail-util-btn:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+}
+
+.rail-util-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   2. MAIN WORKSPACE & TOP OPERATIONAL LEDGER BAR
+   ========================================================================== */
+
+.workbench-main {
+  margin-left: 248px;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.ledger-topbar {
+  background-color: var(--paper-bg);
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  min-height: 64px;
+}
+
+.ledger-metrics-strip {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.ledger-metric-cell {
+  padding: 10px 20px;
+  border-right: 1px solid var(--hairline-subtle);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 165px;
+}
+
+.ledger-metric-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ledger-metric-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.ledger-metric-value {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.ledger-metric-sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.ledger-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px;
+  background-color: var(--paper-subtle);
+  border-left: 1px solid var(--hairline);
+  flex-shrink: 0;
+}
+
+/* Webhook Alert Banner */
+.webhook-alert-strip {
+  background-color: var(--crimson-tint);
+  border-bottom: 1px solid var(--crimson-border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* Workspace Body Container */
+.workspace-body {
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ==========================================================================
+   3. BUTTONS, EXHIBITS, SEALS & BADGES
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Primary Institutional Action (PayPal Blue #005EA6) */
+.btn-primary {
+  background-color: var(--paypal-blue);
+  color: #FFFFFF;
+  border-color: #004B87;
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--paypal-blue-hover);
+}
+
+/* Secondary Crisp Paper Button */
+.btn-secondary {
+  background-color: var(--paper-bg);
+  color: var(--ink-primary);
+  border-color: var(--hairline);
+}
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--paper-subtle);
+  border-color: var(--hairline-strong);
+}
+
+/* Forest Green Seal Action (Submit to PayPal / Protected) */
+.btn-forest,
+.btn-emerald {
+  background-color: var(--forest);
+  color: #FFFFFF;
+  border-color: #14532D;
+}
+.btn-forest:hover:not(:disabled),
+.btn-emerald:hover:not(:disabled) {
+  background-color: #14532D;
+}
+
+/* Statutory Crimson Trigger (Simulate Dispute Webhook) */
+.btn-crimson,
+.btn-attack {
+  background-color: var(--crimson-tint);
+  color: var(--crimson);
+  border-color: var(--crimson-border);
+}
+.btn-crimson:hover:not(:disabled),
+.btn-attack:hover:not(:disabled) {
+  background-color: var(--crimson);
+  color: #FFFFFF;
+  border-color: var(--crimson);
+}
+
+/* Manila Exhibit Tag — Strictly reserved for verified evidentiary artifacts */
+.exhibit-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: var(--manila-bg);
+  border: 1px solid var(--manila-border);
+  color: var(--manila-stamp);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+}
+
+.exhibit-card {
+  background-color: var(--manila-bg);
+  border: 1px solid var(--manila-border);
+  border-radius: 5px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.exhibit-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(223, 201, 155, 0.65);
+  padding-bottom: 6px;
+}
+
+.exhibit-stamp-title {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--manila-stamp);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Status Pills & Seller Protection Seals */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.status-pill.defended {
+  background-color: var(--forest-tint);
+  color: var(--forest);
+  border: 1px solid var(--forest-border);
+}
+
+.status-pill.ready {
+  background-color: var(--paypal-blue-tint);
+  color: var(--paypal-blue);
+  border: 1px solid var(--paypal-blue-border);
+}
+
+.status-pill.pending {
+  background-color: var(--amber-tint);
+  color: var(--amber);
+  border: 1px solid var(--amber-border);
+}
+
+.status-pill.settled {
+  background-color: var(--paper-subtle);
+  color: var(--ink-secondary);
+  border: 1px solid var(--hairline);
+}
+
+.status-pill.escalated {
+  background-color: var(--crimson-tint);
+  color: var(--crimson);
+  border: 1px solid var(--crimson-border);
+}
+
+/* Seller Protection Seal */
+.seller-protection-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.seller-protection-badge.eligible {
+  background-color: var(--forest-tint);
+  color: var(--forest);
+  border: 1px solid var(--forest-border);
+}
+
+.seller-protection-badge.ineligible {
+  background-color: var(--paper-subtle);
+  color: var(--ink-muted);
+  border: 1px solid var(--hairline);
+}
+
+/* ==========================================================================
+   4. SPLIT-PANE DISPUTE OPERATIONS WORKBENCH & AG GRID
+   ========================================================================== */
+
+.operations-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 440px;
+  gap: 16px;
+  align-items: start;
+}
+
+.operations-workbench.drawer-closed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 1320px) {
+  .operations-workbench {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ag-grid-container {
+  background-color: var(--paper-bg);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.grid-toolbar {
+  padding: 12px 16px;
+  background-color: var(--paper-subtle);
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--paper-bg);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 6px 10px;
+  width: 300px;
+  transition: border-color var(--transition-fast);
+}
+
+.search-input-wrapper:focus-within {
+  border-color: var(--paypal-blue);
+  outline: 2px solid rgba(0, 94, 166, 0.12);
+}
+
+.search-input-wrapper input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  width: 100%;
+}
+
+.search-input-wrapper input::placeholder {
+  color: var(--ink-faint);
+}
+
+.filter-chips-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--hairline);
+  background-color: var(--paper-bg);
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.filter-chip:hover {
+  border-color: var(--hairline-strong);
+  color: var(--ink-primary);
+  background-color: var(--paper-subtle);
+}
+
+.filter-chip.active {
+  background-color: var(--rail-bg);
+  border-color: var(--rail-bg);
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+/* AG Grid Institutional Paper & Ledger Overrides */
+.ag-theme-quartz,
+.ag-theme-quartz-dark {
+  --ag-background-color: #FFFFFF !important;
+  --ag-foreground-color: #111827 !important;
+  --ag-header-background-color: #FAF9F5 !important;
+  --ag-header-foreground-color: #4B5563 !important;
+  --ag-odd-row-background-color: #FFFFFF !important;
+  --ag-row-hover-color: #F7F9FC !important;
+  --ag-selected-row-background-color: #EBF4FF !important;
+  --ag-border-color: #D8D6CE !important;
+  --ag-row-border-color: #E6E4DD !important;
+  --ag-header-height: 40px !important;
+  --ag-row-height: 66px !important;
+  --ag-font-size: 12.5px !important;
+  --ag-font-family: var(--font-sans) !important;
+  --ag-cell-horizontal-padding: 12px !important;
+}
+
+.ag-theme-quartz .ag-root-wrapper {
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+.ag-theme-quartz .ag-header {
+  border-bottom: 1px solid var(--hairline) !important;
+}
+
+.ag-theme-quartz .ag-header-cell {
+  font-family: var(--font-mono) !important;
+  font-weight: 600 !important;
+  font-size: 10.5px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: var(--ink-muted) !important;
+}
+
+.ag-theme-quartz .ag-row {
+  border-bottom: 1px solid var(--hairline-subtle) !important;
+  cursor: pointer;
+}
+
+.ag-theme-quartz .ag-row-selected {
+  background-color: #EBF4FF !important;
+  border-left: 3px solid var(--paypal-blue) !important;
+}
+
+.ag-theme-quartz .ag-cell {
+  display: flex !important;
+  align-items: center !important;
+  color: var(--ink-primary) !important;
+}
+
+.ag-theme-quartz .ag-cell-focus {
+  border: 1px solid transparent !important;
+  outline: none !important;
+}
+
+/* Right-Hand Case Exhibit & Rebuttal Inspector Drawer */
+.inspector-drawer {
+  background-color: var(--paper-bg);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 84px;
+  max-height: calc(100vh - 104px);
+  overflow: hidden;
+}
+
+.inspector-header {
+  padding: 14px 16px;
+  background-color: var(--paper-subtle);
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inspector-body {
+  padding: 14px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+.inspector-footer {
+  padding: 12px 16px;
+  background-color: var(--paper-subtle);
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ==========================================================================
+   5. PAPER PANELS, LEDGER TABLES, DOSSIER BLOCKS & FORMS
+   ========================================================================== */
+
+.paper-panel {
+  background-color: var(--paper-bg);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  box-shadow: var(--shadow-card);
+}
+
+.paper-panel-header {
+  padding: 14px 18px;
+  background-color: var(--paper-subtle);
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.paper-panel-body {
+  padding: 18px;
+}
+
+.evidence-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .evidence-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.evidence-box {
+  background-color: var(--paper-bg);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+.evidence-box-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hairline-subtle);
+}
+
+.rebuttal-pre-block {
+  background-color: var(--paper-subtle);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--ink-primary);
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.code-dark-block {
+  background-color: #0F1D35;
+  border: 1px solid #1E293B;
+  border-radius: 4px;
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: #E2E8F0;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+/* Key-Value Forensic Ledger Rows */
+.kv-ledger {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--hairline-subtle);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.kv-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--hairline-subtle);
+  background-color: var(--paper-bg);
+}
+
+.kv-row:nth-child(even) {
+  background-color: var(--paper-subtle);
+}
+
+.kv-row:last-child {
+  border-bottom: none;
+}
+
+.kv-key {
+  color: var(--ink-muted);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.kv-val {
+  color: var(--ink-primary);
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+
+/* Forms */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-secondary);
+}
+
+.form-input {
+  background-color: var(--paper-bg);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 7px 10px;
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.form-input:focus {
+  border-color: var(--paypal-blue);
+  outline: 2px solid rgba(0, 94, 166, 0.12);
+}
+
+/* ==========================================================================
+   6. WAR ROOM & AGENT TRACE STREAM
+   ========================================================================== */
+
+.war-room-container {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .war-room-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.agent-roster-card {
+  background-color: var(--paper-bg);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agent-node {
+  padding: 10px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--hairline-subtle);
+  background-color: var(--paper-subtle);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  transition: all var(--transition-fast);
+}
+
+.agent-node.active-agent {
+  background-color: var(--paypal-blue-tint);
+  border-color: var(--paypal-blue);
+}
+
+.agent-icon-box {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.agent-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+
+.agent-role {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.terminal-wrapper {
+  background-color: #0F1D35;
+  border: 1px solid #091221;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 460px;
+}
+
+.terminal-header {
+  padding: 10px 14px;
+  background-color: #0A1426;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.terminal-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: #F8FAFC;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.04em;
+}
+
+.terminal-body {
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #E2E8F0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 460px;
+  overflow-y: auto;
+}
+
+.log-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.5;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid #005EA6;
+}
+
+.log-time {
+  color: #94A3B8;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.log-agent-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.log-message {
+  color: #F1F5F9;
+  font-size: 11.5px;
+}
+
+/* ==========================================================================
+   7. MODALS
+   ========================================================================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 29, 53, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+}
+
+.modal-content {
+  background-color: var(--paper-bg);
+  border: 1px solid var(--hairline);
+  border-radius: 6px;
+  max-width: 920px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-modal);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--hairline);
+  background-color: var(--paper-subtle);
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--hairline);
+  background-color: var(--paper-subtle);
+}
+
+/* Utility Animations */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 960px) {
+  .command-rail {
+    position: static;
+    width: 100%;
+    min-width: 100%;
+  }
+  .workbench-shell {
+    flex-direction: column;
+  }
+  .workbench-main {
+    margin-left: 0;
+  }
+}

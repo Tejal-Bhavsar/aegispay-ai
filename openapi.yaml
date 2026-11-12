@@ -1,0 +1,385 @@
+openapi: 3.1.0
+info:
+  title: AegisPay AI - Multi-Agent Dispute Defense & Fraud Interception API
+  description: |
+    Autonomous Multi-Agent Dispute Defense and Fraud Interception Platform powered by PayPal Developer Platform APIs and Agentic AI.
+    Features automated dispute triage, carrier GPS telemetry verification, PayPal Seller Protection compliance validation, and direct evidence submission to PayPal Disputes REST APIs.
+  version: 1.0.0
+  contact:
+    name: AegisPay Engineering
+    email: support@aegispay.ai
+    url: https://github.com/Tejal-Bhavsar/aegispay-ai
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: http://localhost:5001
+    description: Local AegisPay API Server
+  - url: https://api.aegispay.ai
+    description: Production Sandbox Server
+
+tags:
+  - name: Disputes
+    description: Operations on customer disputes and PayPal chargebacks
+  - name: Swarm Investigation
+    description: Autonomous multi-agent investigation and evidence generation
+  - name: PayPal Integration
+    description: PayPal Developer Platform connectivity and credential configuration
+  - name: Forensics & Intelligence
+    description: Carrier GPS, network telemetry, and fraud ring syndicate analysis
+
+paths:
+  /api/disputes:
+    get:
+      tags:
+        - Disputes
+      summary: List all active disputes
+      description: Returns all pending, under review, and defended disputes formatted for the AG Grid command center.
+      operationId: listDisputes
+      responses:
+        '200':
+          description: List of disputes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    example: 4
+                  disputes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Dispute'
+
+  /api/disputes/{id}:
+    get:
+      tags:
+        - Disputes
+      summary: Get dispute details
+      description: Fetch comprehensive metadata for a specific PayPal dispute.
+      operationId: getDisputeById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: PayPal Dispute Identifier (e.g. PP-D-94821)
+          schema:
+            type: string
+            example: PP-D-94821
+      responses:
+        '200':
+          description: Dispute found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dispute'
+        '404':
+          description: Dispute not found
+
+  /api/disputes/{id}/investigate:
+    post:
+      tags:
+        - Swarm Investigation
+      summary: Deploy Multi-Agent Swarm on dispute
+      description: |
+        Runs Sentinel, Sherlock, Oracle, Lex, and Pax agents to gather carrier telemetry,
+        evaluate PayPal Seller Protection, and draft a bank-grade defense dossier.
+      operationId: investigateDispute
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: PP-D-94821
+      responses:
+        '200':
+          description: Swarm investigation complete with evidence dossier ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  report:
+                    $ref: '#/components/schemas/InvestigationReport'
+                  dispute:
+                    $ref: '#/components/schemas/Dispute'
+
+  /api/disputes/{id}/submit:
+    post:
+      tags:
+        - Swarm Investigation
+      summary: Submit evidence dossier to PayPal Disputes API
+      description: Formats and dispatches evidence payload to PayPal endpoint POST /v1/customer/disputes/{id}/provide-evidence.
+      operationId: submitEvidenceToPayPal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: PP-D-94821
+      responses:
+        '200':
+          description: Evidence submitted to PayPal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  result:
+                    type: object
+                  dispute:
+                    $ref: '#/components/schemas/Dispute'
+
+  /api/disputes/simulate-attack:
+    post:
+      tags:
+        - Disputes
+      summary: Ingest simulated inbound dispute webhook
+      description: Generates a realistic dispute event (INR, Unauthorized, or SNAD) to test real-time ingestion.
+      operationId: simulateDisputeAttack
+      responses:
+        '200':
+          description: Simulated dispute ingested successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                  dispute:
+                    $ref: '#/components/schemas/Dispute'
+
+  /api/disputes/batch-defend:
+    post:
+      tags:
+        - Swarm Investigation
+      summary: Batch auto-defend all pending disputes
+      description: Iterates through all open disputes, runs the multi-agent swarm, and submits evidence to PayPal.
+      operationId: batchDefendDisputes
+      responses:
+        '200':
+          description: Batch defense completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  results:
+                    type: array
+                    items:
+                      type: object
+
+  /api/analytics:
+    get:
+      tags:
+        - Forensics & Intelligence
+      summary: Get platform KPIs and analytics
+      description: Returns protected revenue, win rate, average defense speed, and Seller Protection eligibility rate.
+      operationId: getAnalytics
+      responses:
+        '200':
+          description: Platform KPIs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Analytics'
+
+  /api/syndicates:
+    get:
+      tags:
+        - Forensics & Intelligence
+      summary: Get Oracle syndicate intelligence clusters
+      description: Returns identified coordinated fraud rings, commercial re-shipper hotspots, and threat levels.
+      operationId: getSyndicates
+      responses:
+        '200':
+          description: Syndicate cluster data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  active_threat_level:
+                    type: string
+                    example: HIGH
+                  identified_clusters:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SyndicateCluster'
+
+  /api/paypal/status:
+    get:
+      tags:
+        - PayPal Integration
+      summary: Check PayPal API connection status
+      description: Checks whether live PayPal Sandbox credentials are valid or if the platform is running in Sandbox Simulation mode.
+      operationId: getPayPalStatus
+      responses:
+        '200':
+          description: PayPal connectivity status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connected:
+                    type: boolean
+                  mode:
+                    type: string
+                    example: LIVE_SANDBOX
+                  message:
+                    type: string
+
+  /api/paypal/configure:
+    post:
+      tags:
+        - PayPal Integration
+      summary: Update PayPal Sandbox credentials
+      description: Sets the client ID and secret used to generate OAuth 2.0 access tokens.
+      operationId: configurePayPalCredentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - clientId
+                - clientSecret
+              properties:
+                clientId:
+                  type: string
+                clientSecret:
+                  type: string
+                isSandbox:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Credentials updated and connection tested
+
+components:
+  schemas:
+    Dispute:
+      type: object
+      properties:
+        dispute_id:
+          type: string
+          example: PP-D-94821
+        create_time:
+          type: string
+          format: date-time
+        dispute_amount:
+          type: object
+          properties:
+            currency_code:
+              type: string
+              example: USD
+            value:
+              type: string
+              example: '489.00'
+        status:
+          type: string
+          enum: [REQUIRED_ACTION, UNDER_REVIEW, RESOLVED]
+        dispute_reason:
+          type: string
+          enum: [MERCHANDISE_OR_SERVICE_NOT_RECEIVED, UNAUTHORIZED, MERCHANDISE_OR_SERVICE_NOT_AS_DESCRIBED]
+        buyer_info:
+          type: object
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+            account_age_days:
+              type: integer
+        transaction_details:
+          type: object
+          properties:
+            order_id:
+              type: string
+            item_title:
+              type: string
+            item_price:
+              type: string
+        seller_protection:
+          type: object
+          properties:
+            eligible:
+              type: boolean
+            protection_category:
+              type: string
+        ai_state:
+          type: object
+          properties:
+            status:
+              type: string
+            defense_confidence:
+              type: number
+            recommended_action:
+              type: string
+
+    InvestigationReport:
+      type: object
+      properties:
+        dispute_id:
+          type: string
+        recommendation:
+          type: string
+        win_probability_pct:
+          type: number
+        paypal_payload_ready:
+          type: object
+
+    Analytics:
+      type: object
+      properties:
+        total_disputes:
+          type: integer
+        total_disputed_volume_usd:
+          type: string
+        defended_count:
+          type: integer
+        protected_revenue_usd:
+          type: string
+        automation_win_rate_pct:
+          type: number
+        avg_resolution_seconds:
+          type: number
+        seller_protection_eligible_pct:
+          type: number
+
+    SyndicateCluster:
+      type: object
+      properties:
+        cluster_id:
+          type: string
+        name:
+          type: string
+        pattern:
+          type: string
+        location:
+          type: string
+        total_attempts:
+          type: integer
+        confidence_pct:
+          type: number
+        threat_level:
+          type: string
