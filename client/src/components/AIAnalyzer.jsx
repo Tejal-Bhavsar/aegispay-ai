@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   Sparkles,
   ShieldCheck,
@@ -98,7 +99,7 @@ const PRESET_SCENARIOS = {
   },
 };
 
-export default function AIAnalyzer({ onDisputeResolved }) {
+export default function AIAnalyzer({ onDisputeResolved, activeDispute }) {
   // Model Settings State
   const [provider, setProvider] = useState('gemini'); // 'gemini' | 'openai'
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('aegispay_ai_key') || '');
@@ -114,6 +115,44 @@ export default function AIAnalyzer({ onDisputeResolved }) {
   const [isSubmittingToPayPal, setIsSubmittingToPayPal] = useState(false);
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
   const [copiedLetter, setCopiedLetter] = useState(false);
+
+  // Sync when activeDispute prop changes (e.g. user clicked Deploy Swarm on a grid row)
+  useEffect(() => {
+    if (activeDispute) {
+      setFormData({
+        id: activeDispute.dispute_id,
+        dispute_reason: activeDispute.dispute_reason,
+        dispute_amount: activeDispute.dispute_amount?.value || '0.00',
+        currency: activeDispute.dispute_amount?.currency_code || 'USD',
+        buyer_name: activeDispute.buyer_info?.name || 'Verified Customer',
+        buyer_email: activeDispute.buyer_info?.email || 'customer@paypal-user.com',
+        buyer_claim_notes: activeDispute.dispute_reason === 'MERCHANDISE_OR_SERVICE_NOT_RECEIVED'
+          ? 'Customer claims package was not received at destination address.'
+          : activeDispute.dispute_reason === 'UNAUTHORIZED'
+          ? 'Cardholder filed bank chargeback claiming unauthorized card capture.'
+          : 'Customer claims item condition differs from merchant description.',
+        order_id: activeDispute.transaction_details?.order_id || 'ORD-SYNC',
+        item_title: activeDispute.transaction_details?.item_title || 'Disputed Merchant Order',
+        item_price: activeDispute.dispute_amount?.value || '0.00',
+        carrier: activeDispute.carrier_tracking_key?.includes('FEDEX') ? 'FedEx Ground' : 'UPS 2nd Day Air',
+        tracking_number: activeDispute.carrier_tracking_key || '948210389102381',
+        delivery_status: 'DELIVERED',
+        delivery_timestamp: '2026-11-04T14:32:18Z',
+        signed_by: activeDispute.buyer_info?.name ? `${activeDispute.buyer_info.name} (Direct Signature)` : 'M. REYNOLDS (Direct Signature)',
+        delivery_location: 'Front Door / Covered Vestibule',
+        shipping_address: activeDispute.shipping_address ? `${activeDispute.shipping_address.line1}, ${activeDispute.shipping_address.city}, ${activeDispute.shipping_address.state} ${activeDispute.shipping_address.postal_code}` : '742 Evergreen Terrace, Austin, TX 78701',
+        gps_coordinates: '30.2672 N, 97.7431 W (Accuracy: 2.4m)',
+        checkout_ip: '70.112.44.89',
+        ip_city: activeDispute.shipping_address?.city || 'Austin, TX',
+        ip_distance_km: '3.8',
+        auth_method: 'PayPal One-Touch 2FA Biometric',
+        customer_lifetime_spend: '2800.00',
+      });
+      setActiveScenario('CUSTOM');
+      setAnalysisResult(null);
+      setSubmissionSuccess(false);
+    }
+  }, [activeDispute]);
 
   const saveApiKey = (key) => {
     setApiKey(key);
