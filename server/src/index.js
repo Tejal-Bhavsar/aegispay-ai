@@ -2,10 +2,21 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const disputeStore = require('./data/mockDisputes');
+const { getCarrierTelemetry } = require('./data/carrierService');
+const { getOrderTelemetry } = require('./data/telemetryService');
 const orchestrator = require('./agents/orchestrator');
 const paypalClient = require('./paypalClient');
 const aiEngine = require('./aiEngine');
 const { v4: uuidv4 } = require('uuid');
+
+const enrichDispute = (d) => {
+  if (!d) return d;
+  return {
+    ...d,
+    carrier_telemetry: getCarrierTelemetry(d.carrier_tracking_key),
+    order_telemetry: getOrderTelemetry(d.transaction_details?.order_id),
+  };
+};
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -58,7 +69,7 @@ app.post('/api/paypal/configure', async (req, res) => {
 
 // 3. List all disputes (For AG Grid table)
 app.get('/api/disputes', (req, res) => {
-  const disputes = disputeStore.getAll();
+  const disputes = disputeStore.getAll().map(enrichDispute);
   res.json({
     total: disputes.length,
     disputes,
@@ -71,7 +82,7 @@ app.get('/api/disputes/:id', (req, res) => {
   if (!dispute) {
     return res.status(404).json({ error: `Dispute ${req.params.id} not found.` });
   }
-  res.json(dispute);
+  res.json(enrichDispute(dispute));
 });
 
 // 5. Run Investigation (Synchronous)
@@ -79,7 +90,7 @@ app.post('/api/disputes/:id/investigate', async (req, res) => {
   try {
     const strategy = req.body?.strategy || req.query.strategy || 'LEGAL_AGGRESSIVE';
     const report = await orchestrator.runInvestigation(req.params.id, null, strategy);
-    const updatedDispute = disputeStore.getById(req.params.id);
+    const updatedDispute = enrichDispute(disputeStore.getById(req.params.id));
     res.json({
       success: true,
       report,
@@ -103,7 +114,7 @@ app.get('/api/disputes/:id/investigate-stream', async (req, res) => {
     await orchestrator.runInvestigation(disputeId, (step) => {
       res.write(`data: ${JSON.stringify(step)}\n\n`);
     }, strategy);
-    const updatedDispute = disputeStore.getById(disputeId);
+    const updatedDispute = enrichDispute(disputeStore.getById(disputeId));
     res.write(`data: ${JSON.stringify({ type: 'COMPLETE_PAYLOAD', dispute: updatedDispute })}\n\n`);
     res.end();
   } catch (error) {
@@ -116,7 +127,7 @@ app.get('/api/disputes/:id/investigate-stream', async (req, res) => {
 app.post('/api/disputes/:id/submit', async (req, res) => {
   try {
     const result = await orchestrator.submitToPayPal(req.params.id);
-    const updated = disputeStore.getById(req.params.id);
+    const updated = enrichDispute(disputeStore.getById(req.params.id));
     res.json({
       success: true,
       result,
@@ -220,7 +231,7 @@ app.post('/api/disputes/simulate-attack', (req, res) => {
   res.json({
     success: true,
     message: `Simulated dispute event ingested: ${disputeId}`,
-    dispute: newDispute,
+    dispute: enrichDispute(newDispute),
   });
 });
 
@@ -239,13 +250,13 @@ app.post('/api/disputes/batch-defend', async (req, res) => {
     success: true,
     count: results.length,
     results,
-    disputes: disputeStore.getAll(),
+    disputes: disputeStore.getAll().map(enrichDispute),
   });
 });
 
 // 10. Reset data store
 app.post('/api/disputes/reset', (req, res) => {
-  const restored = disputeStore.reset();
+  const restored = disputeStore.reset().map(enrichDispute);
   res.json({ success: true, count: restored.length, disputes: restored });
 });
 
@@ -304,7 +315,11 @@ app.get('/api/syndicates', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`[AegisPay Server] Running on http://localhost:${PORT}`);
-  console.log(`[PayPal Mode] ${paypalClient.isConfigured() ? 'Live Sandbox' : 'Sandbox Simulation'}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`[AegisPay Server] Running on http://localhost:${PORT}`);
+    console.log(`[PayPal Mode] ${paypalClient.isConfigured() ? 'Live Sandbox' : 'Sandbox Simulation'}`);
+  });
+}
+
+module.exports = app;
